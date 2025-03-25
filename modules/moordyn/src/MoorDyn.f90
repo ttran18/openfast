@@ -288,6 +288,8 @@ CONTAINS
       
       do while ( i <= FileInfo_In%NumLines )
 
+         ! TODO: check for Echo flag and if so, throw warning suggesting wrtielog
+
          if (INDEX(Line, "---") > 0) then ! look for a header line
 
             if ( ( INDEX(Line, "LINE DICTIONARY") > 0) .or. ( INDEX(Line, "LINE TYPES") > 0) ) then ! if line dictionary header

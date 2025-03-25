@@ -1167,6 +1167,13 @@ CONTAINS
       Real(DbKi)                       :: phi_dot       ! frequency of lift force (rad/s)
       Real(DbKi)                       :: f_hat         ! non-dimensional frequency 
 
+      INTEGER(IntKi)                   :: ErrStat2
+      CHARACTER(120)                   :: ErrMsg2   
+      CHARACTER(120)                   :: RoutineName = 'Line_GetStateDeriv'   
+
+
+      ErrStat = ErrID_None
+      ErrMsg  = ""
 
       N = Line%N                      ! for convenience
       d = Line%d    
@@ -1341,8 +1348,8 @@ CONTAINS
          
          
          ! >>>> could do similar as above for nonlinear damping or bending stiffness <<<<         
-         if (Line%nBApoints > 0) print *, 'Nonlinear elastic damping not yet implemented'
-         if (Line%nEIpoints > 0) print *, 'Nonlinear bending stiffness not yet implemented'
+         if (Line%nBApoints > 0) CALL SetErrStat(ErrID_Warn,'Nonlinear elastic damping not yet implemented',ErrStat,ErrMsg,RoutineName)
+         if (Line%nEIpoints > 0) CALL SetErrStat(ErrID_Warn,'Nonlinear bending stiffness not yet implemented',ErrStat,ErrMsg,RoutineName)
             
             
          ! basic elasticity model
@@ -1367,8 +1374,7 @@ CONTAINS
                   
                   ! Double check none of the assumptions were violated (this should never happen)
                   IF (Line%alphaMBL <= 0 .OR. Line%vbeta <= 0 .OR. Line%l(I) <= 0 .OR. Line%dl_1(I) <= 0 .OR. EA_D < Line%EA) THEN
-                     ErrStat = ErrID_Warn
-                     ErrMsg = "Viscoelastic model: Assumption for mean load dependent dynamic stiffness violated"
+                     CALL SetErrStat(ErrID_Warn,"Viscoelastic model: Assumption for mean load dependent dynamic stiffness violated",ErrStat,ErrMsg,RoutineName)
                      if (wordy > 2) then
                         print *, "Line%alphaMBL", Line%alphaMBL
                         print *, "Line%vbeta", Line%vbeta
@@ -1389,12 +1395,10 @@ CONTAINS
             endif
 
             if (EA_D == 0.0) then ! Make sure EA != EA_D or else nans, also make sure EA_D != 0  or else nans. 
-               ErrStat = ErrID_Fatal
-               ErrMsg = "Viscoelastic model: Dynamic stiffness cannot equal zero"
+               CALL SetErrStat(ErrID_Fatal,"Viscoelastic model: Dynamic stiffness cannot equal zero",ErrStat,ErrMsg,RoutineName)
                return
             else if (EA_D == Line%EA) then
-               ErrStat = ErrID_Fatal
-               ErrMsg = "Viscoelastic model: Dynamic stiffness cannot equal static stiffness"
+               CALL SetErrStat(ErrID_Fatal,"Viscoelastic model: Dynamic stiffness cannot equal static stiffness",ErrStat,ErrMsg,RoutineName)
                return
             endif
          
