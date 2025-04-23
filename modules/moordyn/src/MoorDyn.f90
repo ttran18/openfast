@@ -545,7 +545,7 @@ CONTAINS
 
 
       ! set up seabed bathymetry
-      CALL setupBathymetry(DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL setupBathymetry(p, DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
       CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
       CALL getDepthFromBathymetry(m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, 0.0_DbKi, 0.0_DbKi, p%WtrDpth, nvec)  ! set depth at 0,0 as nominal for waves etc
       
