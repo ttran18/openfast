@@ -546,6 +546,7 @@ CONTAINS
 
       ! set up seabed bathymetry
       CALL setupBathymetry(DepthValue, InitInp%WtrDepth, m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, ErrStat2, ErrMsg2)
+      CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
       CALL getDepthFromBathymetry(m%BathymetryGrid, m%BathGrid_Xs, m%BathGrid_Ys, 0.0_DbKi, 0.0_DbKi, p%WtrDpth, nvec)  ! set depth at 0,0 as nominal for waves etc
       
       
@@ -2956,7 +2957,7 @@ CONTAINS
 
             IF (ErrStat /= ErrID_None) ErrMsg = TRIM(ErrMsg)//NewLine   ! if there's a pre-existing warning/error, retain the message and start a new line
 
-            ErrMsg = TRIM(ErrMsg)//' MD_Init:'//TRIM(Msg)
+            ErrMsg = TRIM(ErrMsg)//RoutineName//":"//TRIM(Msg)
             ErrStat = MAX(ErrStat, ErrID)
 
             Msg = "" ! Reset the error message now that it has been logged into ErrMsg
