@@ -2346,6 +2346,7 @@ SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichairfoil, errStat, errMsg)
   character(*),                  intent(  out)         :: ErrMsg         !< Error message if ErrStat /= ErrID_None
   character(*), parameter :: RoutineName = 'BL_Param_Interp'
   REAL(ReKi)              :: redif1,redif2,aoadif1,aoadif2,xx1,xx2,RC
+  real(ReKi)              :: denom
   INTEGER(intKi)          :: loop1,loop2
   logical                 :: re_flag
   ErrStat = ErrID_None
@@ -2360,79 +2361,83 @@ SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichairfoil, errStat, errMsg)
           re_flag = .TRUE.
           redif1=abs(RC-p%ReListBL(loop1+1))
           redif2=abs(RC-p%ReListBL(loop1))
+          denom = redif1+redif2
+          
           DO loop2=1,size(p%AOAListBL)-1
 
               if (  (AlphaNoise.le.p%AOAListBL(loop2+1)) .and. (AlphaNoise.gt.p%AOAListBL(loop2))  ) then
                   aoadif1=abs(AlphaNoise-p%AOAListBL(loop2+1))
                   aoadif2=abs(AlphaNoise-p%AOAListBL(loop2))
 
-                  xx1=( p%dstarall1(loop2,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%dstarall1(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%dstarall1(loop2,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%dstarall1(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%dstarVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%dstarall2(loop2,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%dstarall2(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%dstarall2(loop2,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%dstarall2(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%dstarVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%d99all1(loop2,loop1+1,whichairfoil)*redif2+p%d99all1(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%d99all1(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all1(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%d99all1(loop2,loop1+1,whichairfoil)*redif2+p%d99all1(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%d99all1(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%d99Var(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%d99all2(loop2,loop1+1,whichairfoil)*redif2+p%d99all2(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%d99all2(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all2(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%d99all2(loop2,loop1+1,whichairfoil)*redif2+p%d99all2(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%d99all2(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%d99Var(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%Cfall1(loop2,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%Cfall1(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%Cfall1(loop2,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%Cfall1(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%CfVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%Cfall2(loop2,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%Cfall2(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%Cfall2(loop2,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%Cfall2(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%CfVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%EdgeVelRat1(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%EdgeVelRat1(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%EdgeVelVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
-                  xx1=( p%EdgeVelRat2(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  xx2=( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
+                  xx1=( p%EdgeVelRat2(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2,loop1,whichairfoil)*redif1 ) / denom
+                  xx2=( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
                   m%EdgeVelVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
 
                   return ! We exit the routine !
               endif
-              if (loop2 .eq. (size(p%AOAListBL)-1) ) then
+          end do
+          
 
-                  if (AlphaNoise .gt. p%AOAListBL(size(p%AOAListBL))) then
-                      CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
-                      CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
-                      CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(loop2+1))))
-                      m%dStarVar  (1) = ( p%dstarall1  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%dStarVar  (2) = ( p%dstarall2  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%d99Var    (1) = ( p%d99all1    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all1    (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%d99Var    (2) = ( p%d99all2    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all2    (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%CfVar     (1) = ( p%Cfall1     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%CfVar     (2) = ( p%Cfall2     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%EdgeVelVar(1) = ( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                      m%EdgeVelVar(2) = ( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 )/(redif1+redif2)
-                  elseif (AlphaNoise .lt. p%AOAListBL(1)) then
-                      CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
-                      CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
-                      CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(1))) )
-                      m%dStarVar(1)   = ( p%dstarall1  (1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%dStarVar(2)   = ( p%dstarall2  (1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%d99Var(1)     = ( p%d99all1    (1,loop1+1,whichairfoil)*redif2 + p%d99all1    (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%d99Var(2)     = ( p%d99all2    (1,loop1+1,whichairfoil)*redif2 + p%d99all2    (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%CfVar(1)      = ( p%Cfall1     (1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%CfVar(2)      = ( p%Cfall2     (1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%EdgeVelVar(1) = ( p%EdgeVelRat1(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                      m%EdgeVelVar(2) = ( p%EdgeVelRat2(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(1,loop1,whichairfoil)*redif1 ) / (redif1+redif2)
-                  endif
-              endif
-          enddo
+          if (AlphaNoise .gt. p%AOAListBL(size(p%AOAListBL))) then
+                CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
+                CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
+                CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(loop2+1))))
+                m%dStarVar  (1) = ( p%dstarall1  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%dStarVar  (2) = ( p%dstarall2  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%d99Var    (1) = ( p%d99all1    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all1    (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%d99Var    (2) = ( p%d99all2    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all2    (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%CfVar     (1) = ( p%Cfall1     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%CfVar     (2) = ( p%Cfall2     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%EdgeVelVar(1) = ( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 )/denom
+                m%EdgeVelVar(2) = ( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 )/denom
+          elseif (AlphaNoise .lt. p%AOAListBL(1)) then
+                CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
+                CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
+                CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(1))) )
+                m%dStarVar(1)   = ( p%dstarall1  (1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (1,loop1,whichairfoil)*redif1 ) / denom
+                m%dStarVar(2)   = ( p%dstarall2  (1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (1,loop1,whichairfoil)*redif1 ) / denom
+                m%d99Var(1)     = ( p%d99all1    (1,loop1+1,whichairfoil)*redif2 + p%d99all1    (1,loop1,whichairfoil)*redif1 ) / denom
+                m%d99Var(2)     = ( p%d99all2    (1,loop1+1,whichairfoil)*redif2 + p%d99all2    (1,loop1,whichairfoil)*redif1 ) / denom
+                m%CfVar(1)      = ( p%Cfall1     (1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (1,loop1,whichairfoil)*redif1 ) / denom
+                m%CfVar(2)      = ( p%Cfall2     (1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (1,loop1,whichairfoil)*redif1 ) / denom
+                m%EdgeVelVar(1) = ( p%EdgeVelRat1(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(1,loop1,whichairfoil)*redif1 ) / denom
+                m%EdgeVelVar(2) = ( p%EdgeVelRat2(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(1,loop1,whichairfoil)*redif1 ) / denom
+          endif
+
+      
       endif    
   enddo 
   if (.not. re_flag) then
-    call SetErrStat( ErrID_Fatal, 'Warning AeroAcoustics Module - the Reynolds number is not in the range provided by the user. Code stopping.', ErrStat, ErrMsg, RoutineName )
+    call SetErrStat( ErrID_Fatal, 'The Reynolds number, '//trim(num2lstr(RC))//', is not in the range provided by the user ,['//TRIM(num2lstr(p%ReListBL(1)))//','//TRIM(num2lstr(p%ReListBL(1)))//'].', ErrStat, ErrMsg, RoutineName )
+    
     return
   endif 
 END SUBROUTINE BL_Param_Interp
