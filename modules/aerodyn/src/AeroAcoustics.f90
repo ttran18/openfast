@@ -199,7 +199,7 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     IF( (p%ITURB.eq.2) .or. (p%IInflow.gt.1) )then
         ! if tno is on or one of the guidati models is on, check if we have airfoil coordinates
         DO k=1,size(p%AFInfo) ! if any of the airfoil coordinates are missing change calculation method
-            IF( (size(p%AFInfo(k)%X_Coord) .lt. 5) .or. (size(p%AFInfo(k)%Y_Coord).lt.5) )then
+            IF( p%AFInfo(k)%NumCoords .lt. 5 )then
                 IF (tri) then ! Print the message for once only
                     CALL WrScr( 'Airfoil coordinates are missing: If Full or Simplified Guidati or Bl Calculation is on coordinates are needed ' )
                     CALL WrScr( 'Calculation methods enforced as BPM for TBLTE and only Amiet for inflow ' )
@@ -295,8 +295,13 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
         do j=1,p%NumBlNds
             whichairfoil         = p%BlAFID(j,i)  ! just a temporary variable for clear coding
             ! airfoil coordinates read by AeroDyn. First value is the aerodynamic center
-            p%AerCent(1,J,I)  = p%AFInfo(whichairfoil)%X_Coord(1)  ! assigned here corresponding airfoil.
-            p%AerCent(2,J,I)  = p%AFInfo(whichairfoil)%Y_Coord(1)  ! assigned here corresponding airfoil.
+            if (p%AFInfo(whichairfoil)%NumCoords > 0) then
+               p%AerCent(1,J,I)  = p%AFInfo(whichairfoil)%X_Coord(1)  ! assigned here corresponding airfoil.
+               p%AerCent(2,J,I)  = p%AFInfo(whichairfoil)%Y_Coord(1)  ! assigned here corresponding airfoil.
+            else
+               p%AerCent(1,J,I)  = 0.0_ReKi
+               p%AerCent(2,J,I)  = 0.0_ReKi
+            end if
         enddo
     enddo
 
