@@ -793,17 +793,17 @@ subroutine AA_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg)
     ErrMsg  = ""
     ! assume integer divide is possible
     call CalcObserve(t,p,m,u,xd,errStat2, errMsg2)
-    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
     IF (t >= p%AAStart) THEN        
         IF (mod(t + 1E-10,p%DT) .lt. 1E-6) THEN
             call CalcAeroAcousticsOutput(u,p,m,xd,y,errStat2,errMsg2)
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
 
-            call Calc_WriteOutput( p, u, m, y,  ErrStat2, ErrMsg2 )     
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)      
+            call Calc_WriteOutput( p, u, m, y,  ErrStat2, ErrMsg2 )
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
 
             call AA_WriteOutputLine(y, t, p, ErrStat2, ErrMsg2)
-            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)      
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
         ENDIF
     ENDIF
 end subroutine AA_CalcOutput
@@ -1042,7 +1042,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             !--------Read in Boundary Layer Data-------------------------!
             IF (p%X_BLMethod .EQ. X_BLMethod_Tables) THEN
                 call BL_Param_Interp(p,m,Unoise,AlphaNoise,p%BlChord(J,I),p%BlAFID(J,I), errStat2, errMsg2)
-                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 temp_dispthick(J,I) = m%d99Var(1)
                 m%d99Var            = m%d99Var*p%BlChord(J,I)
                 m%dstarVar          = m%dstarVar*p%BlChord(J,I)
@@ -1058,21 +1058,21 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                     CALL LBLVS(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                         elementspan,m%rTEtoObserve(K,J,I), &
                         p,m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLLBL,p%StallStart(J,I),errStat2,errMsg2)
-                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Turbulent Boundary Layer Trailing Edge Noise----------------------------!
                 IF (   (p%ITURB .EQ. 1) .or. (p%ITURB .EQ. 2) )   THEN
                     CALL TBLTE(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                     elementspan,m%rTEtoObserve(K,J,I), p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),p%StallStart(J,I), &
                     m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL,errStat2,errMsg2 )
-                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                     IF (p%ITURB .EQ. 2)  THEN
                         m%SPLP=0.0_ReKi;m%SPLS=0.0_ReKi;m%SPLTBL=0.0_ReKi;
                         m%EdgeVelVar(1)=1.000d0;m%EdgeVelVar(2)=m%EdgeVelVar(1);
                         CALL TBLTE_TNO(UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                             elementspan,m%rTEtoObserve(K,J,I),m%CfVar,m%d99var,m%EdgeVelVar ,p, &
                             m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL,errStat2 ,errMsg2)
-                        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                     ENDIF
                 ENDIF
                 !--------Blunt Trailing Edge Noise----------------------------------------------!
@@ -1080,13 +1080,13 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                     CALL BLUNT(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                     elementspan,m%rTEtoObserve(K,J,I),p%TEThick(J,I),p%TEAngle(J,I), &
                     p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT,p%StallStart(J,I),errStat2,errMsg2 )
-                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Tip Noise--------------------------------------------------------------!
                 IF (  (p%ITIP .EQ. 1) .AND. (J .EQ. p%NumBlNds)  ) THEN 
                     CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                         m%rTEtoObserve(K,J,I), p, m%SPLTIP,errStat2,errMsg2)
-                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Inflow Turbulence Noise ------------------------------------------------!
                 ! important checks to be done inflow tubulence inputs
@@ -1095,16 +1095,16 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                     ! Amiet's Inflow Noise Model is Calculated as long as InflowNoise is On
                     CALL InflowNoise(AlphaNoise,p%BlChord(J,I),Unoise,m%ChordAngleLE(K,J,I),m%SpanAngleLE(K,J,I),&
                         elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti,errStat2,errMsg2 )
-                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
                     ! If Guidati model (simplified or full version) is also on then the 'SPL correction' to Amiet's model will be added 
                     IF ( p%IInflow .EQ. 2 )   THEN      
                         CALL Simple_Guidati(UNoise,p%BlChord(J,I),p%AFThickGuida(2,p%BlAFID(J,I)), &
                             p%AFThickGuida(1,p%BlAFID(J,I)),p,m%SPLTIGui,errStat2,errMsg2 )
-                        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+                        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
                         m%SPLti=m%SPLti+m%SPLTIGui + 10. ! +10 is fudge factor to match NLR data
                     ELSEIF ( p%IInflow .EQ. 3 )   THEN                                     
-                       CALL WrScr('Full Guidati removed')
-                       STOP
+                       call setErrStat(ErrID_Fatal,'Full Guidati removed',ErrStat, ErrMsg,RoutineName)
+                       return
                     ENDIF    
                 ENDIF
                 !----------------------------------------------------------------------------------------------------------------------------------!
@@ -1314,11 +1314,11 @@ SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,
         DSTRP  = dstarVar2
     ELSE
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
     ENDIF
     ! compute directivity function
     CALL DIRECTH_TE(M,THETA,PHI,DBARH,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
 
     IF (DBARH <= 0) THEN
         SPLLAM = 0.
@@ -1456,13 +1456,13 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
         DSTRP  = dstarVar2
     ELSE
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return 
     ENDIF
     ! Compute directivity function
     CALL DIRECTL(M,THETA,PHI,DBARL,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )   
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     CALL DIRECTH_TE(M,THETA,PHI,DBARH,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     !      IF (DBARH <= 0) THEN
     !          SPLP = 0.
     !          SPLS = 0.
@@ -1616,7 +1616,7 @@ SUBROUTINE TIPNOIS(ALPHTIP,ALPRAT2,C,U ,THETA,PHI, R,p,SPLTIP, errStat, errMsg)
     M          = U  / p%SpdSound ! MACH NUMBER
     ! Compute directivity function
     CALL DIRECTH_TE(M,THETA,PHI,DBARH,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     IF (p%ROUND) THEN
         L = .008 * ALPTIPP * C                                    ! Eq 63 from BPM Airfoil Self-noise and Prediction paper   
     ELSE
@@ -1700,9 +1700,9 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
    !Ums = (tinooisess*U)**2
    !Ums = (tinooisess*8)**2
    CALL DIRECTL(Mach,THETA,PHI,DBARL,errStat2,errMsg2) ! assume that noise is low-freq in nature because turbulence length scale is large
-   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )   
+   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
    CALL DIRECTH_LE(Mach,THETA,PHI,DBARH,errStat2,errMsg2) ! Directivity for the leading edge at high frequencies
-   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
    IF (DBARH <= 0) THEN
       SPLti = 0.
       RETURN
@@ -1943,7 +1943,7 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
         DSTRP  = dstarVar2
     ELSE
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     ENDIF
     ! Compute average displacement thickness
     DSTRAVG = (DSTRS + DSTRP) / 2.
@@ -1951,7 +1951,7 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
     DSTARH = 1. /HDSTAR
     ! Compute directivity function
     CALL DIRECTH_TE(M,THETA,PHI,DBARH,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     IF (DBARH <= 0) THEN
         SPLBLUNT = 0.
         RETURN
@@ -1974,10 +1974,10 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
         ETA      = LOG10(STPPP/STPEAK)
         HDSTARL = HDSTAR
         CALL G5COMP(HDSTARL,ETA,G514,errStat2,errMsg2 )                          ! compute G5 for Phi=14deg
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return 
         HDSTARP = 6.724 * HDSTAR **2-4.019*HDSTAR+1.107                         ! eq 82 from BPM Airfoil Self-noise and Prediction paper
         CALL G5COMP(HDSTARP,ETA,G50,errStat2,errMsg2 )                           ! recompute G5 for Phi=0deg
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ) 
+        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
         G5(I) = G50 + .0714 * PSI * (G514-G50)                                   ! interpolate G5 from G50 and G514
         IF (G5(I) .GT. 0.) G5(I) = 0.
         G5Sum = 10**(G5(I)/10)+G5Sum     ! to be subtracted
@@ -2305,7 +2305,7 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
 
     ! Directivity function
     CALL DIRECTH_TE(REAL(Mach,ReKi),THETA,PHI,DBARH,errStat2,errMsg2)
-    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsgn, RoutineName )
+    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsgn, RoutineName ); if (ErrStat >= AbortErrLev) return
  
     do i_omega = 1,n_freq
         omega = 2.*pi*freq(i_omega)
@@ -2443,7 +2443,7 @@ SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichairfoil, errStat, errMsg)
   enddo 
   if (.not. re_flag) then
     call SetErrStat( ErrID_Fatal, 'Warning AeroAcoustics Module - the Reynolds number is not in the range provided by the user. Code stopping.', ErrStat, ErrMsg, RoutineName )
-  stop
+    return
   endif 
 END SUBROUTINE BL_Param_Interp
 
