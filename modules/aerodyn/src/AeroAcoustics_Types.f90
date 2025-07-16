@@ -259,7 +259,6 @@ IMPLICIT NONE
 ! =======================
 ! =========  AA_OutputType  =======
   TYPE, PUBLIC :: AA_OutputType
-    REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: SumSpecNoise      !< Spectra of summed noise level of each blade and blade nodes for each receiver and frequency [SPL]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: SumSpecNoiseSep      !< Spectra of summed noise level of all blades and blade nodes for each receiver and frequency [SPL]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: OASPL      !< summed noise level for each blade and blade nodes and receiver  [SPL]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: DirectiviOutput      !<   [SPL]
@@ -2724,18 +2723,6 @@ subroutine AA_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg
    character(*), parameter        :: RoutineName = 'AA_CopyOutput'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   if (allocated(SrcOutputData%SumSpecNoise)) then
-      LB(1:3) = lbound(SrcOutputData%SumSpecNoise)
-      UB(1:3) = ubound(SrcOutputData%SumSpecNoise)
-      if (.not. allocated(DstOutputData%SumSpecNoise)) then
-         allocate(DstOutputData%SumSpecNoise(LB(1):UB(1),LB(2):UB(2),LB(3):UB(3)), stat=ErrStat2)
-         if (ErrStat2 /= 0) then
-            call SetErrStat(ErrID_Fatal, 'Error allocating DstOutputData%SumSpecNoise.', ErrStat, ErrMsg, RoutineName)
-            return
-         end if
-      end if
-      DstOutputData%SumSpecNoise = SrcOutputData%SumSpecNoise
-   end if
    if (allocated(SrcOutputData%SumSpecNoiseSep)) then
       LB(1:3) = lbound(SrcOutputData%SumSpecNoiseSep)
       UB(1:3) = ubound(SrcOutputData%SumSpecNoiseSep)
@@ -2841,9 +2828,6 @@ subroutine AA_DestroyOutput(OutputData, ErrStat, ErrMsg)
    character(*), parameter        :: RoutineName = 'AA_DestroyOutput'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   if (allocated(OutputData%SumSpecNoise)) then
-      deallocate(OutputData%SumSpecNoise)
-   end if
    if (allocated(OutputData%SumSpecNoiseSep)) then
       deallocate(OutputData%SumSpecNoiseSep)
    end if
@@ -2875,7 +2859,6 @@ subroutine AA_PackOutput(RF, Indata)
    type(AA_OutputType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'AA_PackOutput'
    if (RF%ErrStat >= AbortErrLev) return
-   call RegPackAlloc(RF, InData%SumSpecNoise)
    call RegPackAlloc(RF, InData%SumSpecNoiseSep)
    call RegPackAlloc(RF, InData%OASPL)
    call RegPackAlloc(RF, InData%DirectiviOutput)
@@ -2895,7 +2878,6 @@ subroutine AA_UnPackOutput(RF, OutData)
    integer(IntKi)  :: stat
    logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
-   call RegUnpackAlloc(RF, OutData%SumSpecNoise); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%SumSpecNoiseSep); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OASPL); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%DirectiviOutput); if (RegCheckErr(RF, RoutineName)) return
