@@ -504,17 +504,17 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     p%NumOutsForSep = p%NrObsLoc*size(p%FreqList)*nNoiseMechanism
     p%NumOutsForPE  = p%NrObsLoc*size(p%Freqlist)
     p%NumOutsForNodes = p%NrObsLoc*p%NumBlNds*p%NumBlades
-    call AllocAry(y%WriteOutput        , p%numOuts              , 'y%WriteOutput'           , errStat2                   , errMsg2); if(Failed()) return
-    call AllocAry(y%WriteOutputSep     , p%NumOutsForSep        , 'y%WriteOutputSep'        , errStat2                   , errMsg2); if(Failed()) return
-    call AllocAry(y%WriteOutputForPE   , p%numOutsForPE         , 'y%WriteOutputForPE'      , errStat2                   , errMsg2); if(Failed()) return
-    call AllocAry(y%DirectiviOutput    , p%NrObsLoc             , 'y%DirectiviOutput'       , errStat2                   , errMsg2); if(Failed()) return
-    call AllocAry(y%WriteOutputNode    , p%NumOutsForNodes      , 'y%WriteOutputSepFreq' , errStat2  , errMsg2); if(Failed()) return
-    call AllocAry(y%OASPL              , p%NrObsLoc             , p%NumBlNds                , p%NumBlades                , 'y%OASPL'           , errStat2               , errMsg2); if(Failed()) return
-    call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                , 'y%SumSpecNoise'    , errStat2               , errMsg2); if(Failed()) return
-    call AllocAry(y%SumSpecNoiseSep    , 7                      , p%NrObsLoc                , size(p%FreqList)           , 'y%SumSpecNoiseSep' , errStat2               , errMsg2); if(Failed()) return
-    call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2  , errMsg2); if(Failed()) return
-    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2  , errMsg2); if(Failed()) return
-    call AllocAry(y%PtotalFreq         , p%NrObsLoc             , size(p%FreqList)          , 'y%PtotalFreq'             , errStat2            , errMsg2); if(Failed()) return
+    call AllocAry(y%WriteOutput        , p%numOuts                                                                                             , 'y%WriteOutput'        , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%WriteOutputSep     , p%NumOutsForSep                                                                                       , 'y%WriteOutputSep'     , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%WriteOutputForPE   , p%numOutsForPE                                                                                        , 'y%WriteOutputForPE'   , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%DirectiviOutput    , p%NrObsLoc                                                                                            , 'y%DirectiviOutput'    , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%WriteOutputNode    , p%NumOutsForNodes                                                                                     , 'y%WriteOutputSepFreq' , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%OASPL              , p%NrObsLoc             , p%NumBlNds                , p%NumBlades                                      , 'y%OASPL'              , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                                      , 'y%SumSpecNoise'       , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%SumSpecNoiseSep    , 7                      , p%NrObsLoc                , size(p%FreqList)                                 , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%PtotalFreq         , size(p%FreqList)       , p%NrObsLoc                                                                   , 'y%PtotalFreq'         , errStat2 , errMsg2); if(Failed()) return
 
     y%WriteOutput        = 0.0_reki
     y%WriteOutputSep     = 0.0_reki
@@ -1131,7 +1131,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         
                      PtotalLBL = PtotalLBL + PLBL                                      ! Sum of Current LBL with LBL Running Total
                         Ptotal = Ptotal + PLBL                                         ! Sum of Current LBL with Overall Running Total
-                     y%PtotalFreq(K,III) = y%PtotalFreq(K,III) + PLBL                  ! Running sum of observer and frequency dependent sound pressure
+                     y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PLBL                  ! Running sum of observer and frequency dependent sound pressure
                   
                      y%SumSpecNoiseSep(1,K,III) = PLBL + y%SumSpecNoiseSep(1,K,III)    ! Assigns Current LBL to Appropriate Mechanism (1), Observer (K), and Frequency (III)
                   ENDIF
@@ -1153,7 +1153,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                      PtotalSep  = PtotalSep  + PTBLALH                                 ! Sum of Current TBLALH with TBLALH Running Total
                   
                      Ptotal = Ptotal + PTBLP + PTBLS + PTBLALH                         ! Sum of Current TBL with Overall Running Total
-                     y%PtotalFreq(K,III) = y%PtotalFreq(K,III) + PTBLP + PTBLS + PTBLALH  ! Running sum of observer and frequency dependent sound pressure
+                     y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTBLP + PTBLS + PTBLALH  ! Running sum of observer and frequency dependent sound pressure
                      PtotalTBLAll = PtotalTBLAll + 10.0_ReKi**(m%SPLTBL(III)/10.0_ReKi)   ! SPLTBL from comment on line 1794 is the mean-square sum of SPLP, SPLS, and SPLALPH.
                                                                                           !   So this should be equal to PTBLP+PTBLS+TBLALH
                      y%SumSpecNoiseSep(2,K,III) = PTBLP   + y%SumSpecNoiseSep(2,K,III)    ! Assigns Current TBLP to Appropriate Mechanism (2), Observer (K), and Frequency (III)
@@ -1171,7 +1171,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         
                      PtotalBlunt = PtotalBlunt + PBLNT                                    ! Sum of Current Blunt with Blunt Running Total
                      Ptotal = Ptotal + PBLNT                                              ! Sum of Current Blunt with Overall Running Total
-                     y%PtotalFreq(K,III) = y%PtotalFreq(K,III) + PBLNT                    ! Running sum of observer and frequency dependent sound pressure
+                     y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PBLNT                    ! Running sum of observer and frequency dependent sound pressure
                         
                      y%SumSpecNoiseSep(5,K,III) = PBLNT + y%SumSpecNoiseSep(5,K,III)      ! Assigns Current Blunt to Appropriate Mechanism (5), Observer (K), and Frequency (III)
                   ENDIF
@@ -1186,7 +1186,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         
                      PtotalTip = PtotalTip + PTip                                         ! Sum of Current Tip with Tip Running Total
                      Ptotal = Ptotal + PTip                                               ! Sum of Current Tip with Overall Running Total
-                     y%PtotalFreq(K,III) = y%PtotalFreq(K,III) + PTip                     ! Running sum of observer and frequency dependent sound pressure
+                     y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTip                     ! Running sum of observer and frequency dependent sound pressure
                   
                      y%SumSpecNoiseSep(6,K,III) = PTip + y%SumSpecNoiseSep(6,K,III)       ! Assigns Current Tip to Appropriate Mechanism (6), Observer (K), and Frequency (III)
                   ENDIF
@@ -1201,7 +1201,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         
                      PtotalInflow = PtotalInflow + PTI                                    ! Sum of Current TI with TI Running Total
                      Ptotal = Ptotal + PTI                                                ! Sum of Current TI with Overall Running Total
-                     y%PtotalFreq(K,III) = y%PtotalFreq(K,III) + PTI                      ! Running sum of observer and frequency dependent sound pressure
+                     y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTI                      ! Running sum of observer and frequency dependent sound pressure
                   
                      y%SumSpecNoiseSep(7,K,III) = PTI + y%SumSpecNoiseSep(7,K,III)        ! Assigns Current TI to Appropriate Mechanism (7), Observer (K), and Frequency (III)
                   ENDIF
@@ -1233,8 +1233,8 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     IF  (p%NrOutFile .gt. 1) THEN 
       DO K = 1,p%NrObsLoc
          DO III=1,size(p%FreqList)
-            IF (y%PtotalFreq(K,III) .EQ. 0.)       y%PtotalFreq(K,III) = 1
-                y%PtotalFreq(K,III)    = 10.*LOG10(y%PtotalFreq(K,III))               ! P to SPL conversion
+            IF (y%PtotalFreq(III,K) .EQ. 0.)       y%PtotalFreq(III,K) = 1
+                y%PtotalFreq(III,K)    = 10.*LOG10(y%PtotalFreq(III,K))               ! P to SPL conversion
          ENDDO
       ENDDO
     ENDIF

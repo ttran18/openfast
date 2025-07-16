@@ -792,7 +792,7 @@ SUBROUTINE Calc_WriteOutput( p, u, m, y, ErrStat, ErrMsg )
       DO K = 1,p%NrObsLoc
          DO III = 1,size(p%FreqList)
             counter=counter+1
-            y%WriteOutputforPE(counter) = y%PtotalFreq(K,III)
+            y%WriteOutputforPE(counter) = y%PtotalFreq(III,K)
          END DO !
       END DO !
    ENDIF
