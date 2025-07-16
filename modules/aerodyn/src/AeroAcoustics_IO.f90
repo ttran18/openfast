@@ -804,7 +804,7 @@ SUBROUTINE Calc_WriteOutput( p, u, m, y, ErrStat, ErrMsg )
          do III = 1,size(p%FreqList)
             do oi=1,size(y%OASPL_Mech,1)
                counter=counter+1
-               y%WriteOutputSep(counter) = y%SumSpecNoiseSep(oi,K,III)
+               y%WriteOutputSep(counter) = y%SumSpecNoiseSep(oi,III,K)
             enddo
          enddo
       enddo

@@ -511,7 +511,7 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     call AllocAry(y%WriteOutputNode    , p%NumOutsForNodes                                                                                     , 'y%WriteOutputSepFreq' , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OASPL              , p%NrObsLoc             , p%NumBlNds                , p%NumBlades                                      , 'y%OASPL'              , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                                      , 'y%SumSpecNoise'       , errStat2 , errMsg2); if(Failed()) return
-    call AllocAry(y%SumSpecNoiseSep    , 7                      , p%NrObsLoc                , size(p%FreqList)                                 , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%SumSpecNoiseSep    , 7                      , size(p%FreqList)          , p%NrObsLoc                                       , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%PtotalFreq         , size(p%FreqList)       , p%NrObsLoc                                                                   , 'y%PtotalFreq'         , errStat2 , errMsg2); if(Failed()) return
@@ -1133,7 +1133,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         Ptotal = Ptotal + PLBL                                         ! Sum of Current LBL with Overall Running Total
                      y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PLBL                  ! Running sum of observer and frequency dependent sound pressure
                   
-                     y%SumSpecNoiseSep(1,K,III) = PLBL + y%SumSpecNoiseSep(1,K,III)    ! Assigns Current LBL to Appropriate Mechanism (1), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(1,III,K) = PLBL + y%SumSpecNoiseSep(1,III,K)    ! Assigns Current LBL to Appropriate Mechanism (1), Observer (K), and Frequency (III)
                   ENDIF
 
                   ! If flag for TBL is ON, compute Pressure, Suction, and AoA contributions
@@ -1156,9 +1156,9 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                      y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTBLP + PTBLS + PTBLALH  ! Running sum of observer and frequency dependent sound pressure
                      PtotalTBLAll = PtotalTBLAll + 10.0_ReKi**(m%SPLTBL(III)/10.0_ReKi)   ! SPLTBL from comment on line 1794 is the mean-square sum of SPLP, SPLS, and SPLALPH.
                                                                                           !   So this should be equal to PTBLP+PTBLS+TBLALH
-                     y%SumSpecNoiseSep(2,K,III) = PTBLP   + y%SumSpecNoiseSep(2,K,III)    ! Assigns Current TBLP to Appropriate Mechanism (2), Observer (K), and Frequency (III)
-                     y%SumSpecNoiseSep(3,K,III) = PTBLS   + y%SumSpecNoiseSep(3,K,III)    ! Assigns Current TBLS to Appropriate Mechanism (2), Observer (K), and Frequency (III)
-                     y%SumSpecNoiseSep(4,K,III) = PTBLALH + y%SumSpecNoiseSep(4,K,III)    ! Assigns Current TBLALH to Appropriate Mechanism (2), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(2,III,K) = PTBLP   + y%SumSpecNoiseSep(2,III,K)    ! Assigns Current TBLP to Appropriate Mechanism (2), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(3,III,K) = PTBLS   + y%SumSpecNoiseSep(3,III,K)    ! Assigns Current TBLS to Appropriate Mechanism (2), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(4,III,K) = PTBLALH + y%SumSpecNoiseSep(4,III,K)    ! Assigns Current TBLALH to Appropriate Mechanism (2), Observer (K), and Frequency (III)
                   ENDIF
 
                   ! If flag for Blunt TE is ON, compute Blunt contribution
@@ -1173,7 +1173,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                      Ptotal = Ptotal + PBLNT                                              ! Sum of Current Blunt with Overall Running Total
                      y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PBLNT                    ! Running sum of observer and frequency dependent sound pressure
                         
-                     y%SumSpecNoiseSep(5,K,III) = PBLNT + y%SumSpecNoiseSep(5,K,III)      ! Assigns Current Blunt to Appropriate Mechanism (5), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(5,III,K) = PBLNT + y%SumSpecNoiseSep(5,III,K)      ! Assigns Current Blunt to Appropriate Mechanism (5), Observer (K), and Frequency (III)
                   ENDIF
 
                   ! If flag for Tip is ON and the current blade node (J) is the last node (tip), compute Tip contribution
@@ -1188,7 +1188,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                      Ptotal = Ptotal + PTip                                               ! Sum of Current Tip with Overall Running Total
                      y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTip                     ! Running sum of observer and frequency dependent sound pressure
                   
-                     y%SumSpecNoiseSep(6,K,III) = PTip + y%SumSpecNoiseSep(6,K,III)       ! Assigns Current Tip to Appropriate Mechanism (6), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(6,III,K) = PTip + y%SumSpecNoiseSep(6,III,K)       ! Assigns Current Tip to Appropriate Mechanism (6), Observer (K), and Frequency (III)
                   ENDIF
 
                   ! If flag for TI is ON, compute Turbulent Inflow contribution
@@ -1203,7 +1203,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                      Ptotal = Ptotal + PTI                                                ! Sum of Current TI with Overall Running Total
                      y%PtotalFreq(III,K) = y%PtotalFreq(III,K) + PTI                      ! Running sum of observer and frequency dependent sound pressure
                   
-                     y%SumSpecNoiseSep(7,K,III) = PTI + y%SumSpecNoiseSep(7,K,III)        ! Assigns Current TI to Appropriate Mechanism (7), Observer (K), and Frequency (III)
+                     y%SumSpecNoiseSep(7,III,K) = PTI + y%SumSpecNoiseSep(7,III,K)        ! Assigns Current TI to Appropriate Mechanism (7), Observer (K), and Frequency (III)
                   ENDIF
                     
                 ENDDO ! III = 1, size(p%FreqList)
@@ -1243,7 +1243,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
    DO K = 1,p%NrObsLoc
       DO III = 1,size(p%FreqList)
          DO oi = 1,7
-            IF (y%SumSpecNoiseSep(oi,K,III)  .EQ. 0.) y%SumSpecNoiseSep(oi,K,III) = 1 
+            IF (y%SumSpecNoiseSep(oi,III,K)  .EQ. 0.) y%SumSpecNoiseSep(oi,III,K) = 1 
          ENDDO
       ENDDO
    ENDDO
