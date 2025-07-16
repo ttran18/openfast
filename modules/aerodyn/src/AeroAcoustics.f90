@@ -135,7 +135,7 @@ end subroutine AA_Init
 !> This routine sets AeroAcoustics parameters for use during the simulation; these variables are not changed after AA_Init.
 subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     TYPE(AA_InitInputType),       INTENT(IN   ) :: InitInp        !< Input data for initialization routine, out is needed because of copy below
-    TYPE(AA_InputFile),           INTENT(IN   ) :: InputFileData  !< Data stored in the module's input file -- intent(out) only for move_alloc statements
+    TYPE(AA_InputFile),           INTENT(INOUT) :: InputFileData  !< Data stored in the module's input file -- intent(out) only for move_alloc statements
     TYPE(AA_ParameterType),       INTENT(INOUT) :: p              !< Parameters
     INTEGER(IntKi),               INTENT(  OUT) :: ErrStat        !< Error status of the operation
     CHARACTER(*),                 INTENT(  OUT) :: ErrMsg         ! Error message if ErrStat /= ErrID_None
