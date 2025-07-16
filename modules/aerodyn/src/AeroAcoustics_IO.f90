@@ -11,6 +11,7 @@ MODULE AeroAcoustics_IO
    type(ProgDesc), parameter  :: AA_Ver = ProgDesc( 'AeroAcoustics', '', '' )
    character(*),   parameter  :: AA_Nickname = 'AA'
 
+   integer(intKi), parameter  :: nNoiseMechanism = 7  ! number of noise mechanisms
 
 
    INTEGER(IntKi), PARAMETER      :: Time      =    0
@@ -802,7 +803,7 @@ SUBROUTINE Calc_WriteOutput( p, u, m, y, ErrStat, ErrMsg )
       counter=0
       do K = 1,p%NrObsLoc
          do III = 1,size(p%FreqList)
-            do oi=1,size(y%OASPL_Mech,1)
+            do oi=1,nNoiseMechanism
                counter=counter+1
                y%WriteOutputSep(counter) = y%SumSpecNoiseSep(oi,III,K)
             enddo

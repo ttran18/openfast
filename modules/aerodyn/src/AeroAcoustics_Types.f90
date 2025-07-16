@@ -262,7 +262,6 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: SumSpecNoise      !< Spectra of summed noise level of each blade and blade nodes for each receiver and frequency [SPL]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: SumSpecNoiseSep      !< Spectra of summed noise level of all blades and blade nodes for each receiver and frequency [SPL]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: OASPL      !< summed noise level for each blade and blade nodes and receiver  [SPL]
-    REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: OASPL_Mech      !< 5 different mechanism noise level for each blade and blade nodes and receiver  [SPL]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: DirectiviOutput      !<   [SPL]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PtotalFreq      !< SPL for each observer and frequency [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WriteOutputForPE      !< Data to be written to an output file: see WriteOutputHdr for names of each variable [see WriteOutputUnt]
@@ -2720,7 +2719,7 @@ subroutine AA_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg
    integer(IntKi),  intent(in   ) :: CtrlCode
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   integer(B4Ki)                  :: LB(4), UB(4)
+   integer(B4Ki)                  :: LB(3), UB(3)
    integer(IntKi)                 :: ErrStat2
    character(*), parameter        :: RoutineName = 'AA_CopyOutput'
    ErrStat = ErrID_None
@@ -2760,18 +2759,6 @@ subroutine AA_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg
          end if
       end if
       DstOutputData%OASPL = SrcOutputData%OASPL
-   end if
-   if (allocated(SrcOutputData%OASPL_Mech)) then
-      LB(1:4) = lbound(SrcOutputData%OASPL_Mech)
-      UB(1:4) = ubound(SrcOutputData%OASPL_Mech)
-      if (.not. allocated(DstOutputData%OASPL_Mech)) then
-         allocate(DstOutputData%OASPL_Mech(LB(1):UB(1),LB(2):UB(2),LB(3):UB(3),LB(4):UB(4)), stat=ErrStat2)
-         if (ErrStat2 /= 0) then
-            call SetErrStat(ErrID_Fatal, 'Error allocating DstOutputData%OASPL_Mech.', ErrStat, ErrMsg, RoutineName)
-            return
-         end if
-      end if
-      DstOutputData%OASPL_Mech = SrcOutputData%OASPL_Mech
    end if
    if (allocated(SrcOutputData%DirectiviOutput)) then
       LB(1:1) = lbound(SrcOutputData%DirectiviOutput)
@@ -2863,9 +2850,6 @@ subroutine AA_DestroyOutput(OutputData, ErrStat, ErrMsg)
    if (allocated(OutputData%OASPL)) then
       deallocate(OutputData%OASPL)
    end if
-   if (allocated(OutputData%OASPL_Mech)) then
-      deallocate(OutputData%OASPL_Mech)
-   end if
    if (allocated(OutputData%DirectiviOutput)) then
       deallocate(OutputData%DirectiviOutput)
    end if
@@ -2894,7 +2878,6 @@ subroutine AA_PackOutput(RF, Indata)
    call RegPackAlloc(RF, InData%SumSpecNoise)
    call RegPackAlloc(RF, InData%SumSpecNoiseSep)
    call RegPackAlloc(RF, InData%OASPL)
-   call RegPackAlloc(RF, InData%OASPL_Mech)
    call RegPackAlloc(RF, InData%DirectiviOutput)
    call RegPackAlloc(RF, InData%PtotalFreq)
    call RegPackAlloc(RF, InData%WriteOutputForPE)
@@ -2908,14 +2891,13 @@ subroutine AA_UnPackOutput(RF, OutData)
    type(RegFile), intent(inout)    :: RF
    type(AA_OutputType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'AA_UnPackOutput'
-   integer(B4Ki)   :: LB(4), UB(4)
+   integer(B4Ki)   :: LB(3), UB(3)
    integer(IntKi)  :: stat
    logical         :: IsAllocAssoc
    if (RF%ErrStat /= ErrID_None) return
    call RegUnpackAlloc(RF, OutData%SumSpecNoise); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%SumSpecNoiseSep); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OASPL); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpackAlloc(RF, OutData%OASPL_Mech); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%DirectiviOutput); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%PtotalFreq); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputForPE); if (RegCheckErr(RF, RoutineName)) return

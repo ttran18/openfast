@@ -495,11 +495,9 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     integer(intKi)                               :: ErrStat2          ! temporary Error status
     character(ErrMsgLen)                         :: ErrMsg2           ! temporary Error message
     character(*), parameter                      :: RoutineName = 'Init_y'
-    integer(intKi)                               :: nNoiseMechanism   ! loop counter for blades
     ! Initialize variables for this routine
     errStat = ErrID_None
     errMsg  = ""
-    nNoiseMechanism = 7! 7 noise mechanisms
     p%numOuts       = p%NrObsLoc
     p%NumOutsForSep = p%NrObsLoc*size(p%FreqList)*nNoiseMechanism
     p%NumOutsForPE  = p%NrObsLoc*size(p%Freqlist)
@@ -511,8 +509,8 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     call AllocAry(y%WriteOutputNode    , p%NumOutsForNodes                                                                                     , 'y%WriteOutputSepFreq' , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OASPL              , p%NrObsLoc             , p%NumBlNds                , p%NumBlades                                      , 'y%OASPL'              , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                                      , 'y%SumSpecNoise'       , errStat2 , errMsg2); if(Failed()) return
-    call AllocAry(y%SumSpecNoiseSep    , 7                      , size(p%FreqList)          , p%NrObsLoc                                       , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
-    call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
+    call AllocAry(y%SumSpecNoiseSep    , nNoiseMechanism        , size(p%FreqList)          , p%NrObsLoc                                       , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
+!    call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
 !    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%PtotalFreq         , size(p%FreqList)       , p%NrObsLoc                                                                   , 'y%PtotalFreq'         , errStat2 , errMsg2); if(Failed()) return
 
@@ -522,7 +520,6 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     y%DirectiviOutput    = 0.0_reki
     y%WriteOutputNode    = 0.0_reki
     y%OASPL              = 0.0_reki
-    y%OASPL_Mech         = 0.0_reki
     y%SumSpecNoise       = 0.0_reki
     y%SumSpecNoiseSep    = 0.0_reki
     y%PtotalFreq         = 0.0_reki
@@ -928,7 +925,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 !    REAL(ReKi),DIMENSION(p%NumBlNds)       ::tempdel
 !    REAL(ReKi),DIMENSION(p%NrObsLoc,p%NumBlNds,p%numBlades)    ::OASPLTBLAll
     REAL(ReKi),DIMENSION(p%NrObsLoc,p%NumBlNds,p%numBlades,size(p%FreqList))    ::ForMaxLoc
-    REAL(ReKi),DIMENSION(size(y%OASPL_Mech,1),size(p%FreqList),p%NrObsLoc,p%NumBlNds,p%numBlades)    :: ForMaxLoc3
+    REAL(ReKi),DIMENSION(nNoiseMechanism,size(p%FreqList),p%NrObsLoc,p%NumBlNds,p%numBlades)    :: ForMaxLoc3
 !    REAL(ReKi),DIMENSION(size(p%FreqList),p%NrObsLoc,p%numBlades)               ::SPL_Out
     REAL(ReKi),DIMENSION(p%NumBlNds,p%numBlades)    ::temp_dispthick
     REAL(ReKi),DIMENSION(p%NumBlNds,p%numBlades)    ::temp_dispthickchord
@@ -963,7 +960,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
     !------------------- Fill arrays with zeros -------------------------!
    y%OASPL = 0.0_Reki
-   y%OASPL_Mech = 0.0_Reki
 
    y%DirectiviOutput = 0.0_Reki
    y%SumSpecNoise = 0.0_Reki
