@@ -327,10 +327,9 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     if (p%X_BLMethod .eq. X_BLMethod_Tables) then
 
         ! Copying inputdata list of AOA and Reynolds to parameters
-        call AllocAry( p%AOAListBL, size(InputFileData%AOAListBL), 'p%AOAListBL', errStat2, errMsg2); if(Failed()) return
-        call AllocAry( p%ReListBL,  size(InputFileData%ReListBL) , 'p%ReListBL' , errStat2, errMsg2); if(Failed()) return
-        p%AOAListBL=InputFileData%AOAListBL
-        p%ReListBL=InputFileData%ReListBL
+        call MOVE_ALLOC(InputFileData%AOAListBL,p%AOAListBL)
+        call MOVE_ALLOC(InputFileData%ReListBL,p%ReListBL)
+        
         ! Allocate the suction and pressure side boundary layer parameters for output - will be used as tabulated data
         call AllocAry(p%dstarall1  ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%dstarall1'  , errStat2, errMsg2); if(Failed()) return
         call AllocAry(p%dstarall2  ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%dstarall2'  , errStat2, errMsg2); if(Failed()) return
@@ -963,38 +962,24 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     ErrStat = ErrID_None
     ErrMsg  = ""
 
-    !------------------- Fill with zeros -------------------------!
-    DO I = 1,p%numBlades;DO J = 1,p%NumBlNds;DO K = 1,p%NrObsLoc; 
-        y%OASPL(k,j,i)        = 0.0_Reki
-        DO oi=1,size(y%OASPL_Mech,1)
-            y%OASPL_Mech(oi,k,j,i)= 0.0_Reki
-        ENDDO;
-    ENDDO;ENDDO;ENDDO
+    !------------------- Fill arrays with zeros -------------------------!
+   y%OASPL = 0.0_Reki
+   y%OASPL_Mech = 0.0_Reki
 
-    DO K = 1,p%NrObsLoc;     
-        y%DirectiviOutput(K)  = 0.0_Reki
-        DO I=1,p%NumBlades;DO III=1,size(p%FreqList);
-            y%SumSpecNoise(III,K,I) = 0.0_Reki
-            ForMaxLoc(K,1:p%NumBlNds,I,III)=0.0_Reki
-            DO oi=1,size(y%OASPL_Mech,1)
-                y%SumSpecNoiseSep(oi,K,III) = 0.0_Reki
-                ForMaxLoc3(oi,III,K,1:p%NumBlNds,I)=0.0_Reki
-                m%SPLLBL(III)=0.0_Reki
-                m%SPLP(III)=0.0_Reki
-                m%SPLS(III)=0.0_Reki
-                m%SPLALPH(III)=0.0_Reki
-                m%SPLBLUNT(III)=0.0_Reki
-                m%SPLTIP(III)=0.0_Reki
-                m%SPLti(III)=0.0_Reki
-            ENDDO
-        ENDDO;ENDDO
-    ENDDO
+   y%DirectiviOutput = 0.0_Reki
+   y%SumSpecNoise = 0.0_Reki
+   ForMaxLoc=0.0_Reki
+   y%SumSpecNoiseSep = 0.0_Reki
+   ForMaxLoc3=0.0_Reki
+   m%SPLLBL=0.0_Reki
+   m%SPLP=0.0_Reki
+   m%SPLS=0.0_Reki
+   m%SPLALPH=0.0_Reki
+   m%SPLBLUNT=0.0_Reki
+   m%SPLTIP=0.0_Reki
+   m%SPLti=0.0_Reki
+   y%PtotalFreq = 0.0_ReKi
 
-    DO K = 1,p%NrObsLoc;
-       DO III = 1,size(p%FreqList);
-          y%PtotalFreq(K,III) = 0.0_ReKi
-       ENDDO
-    ENDDO
 
     !------------------- initialize FFT  -------------------------!
     !!!IF (m%speccou .eq. p%total_sample)THEN
