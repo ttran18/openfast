@@ -513,7 +513,7 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                                      , 'y%SumSpecNoise'       , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%SumSpecNoiseSep    , 7                      , size(p%FreqList)          , p%NrObsLoc                                       , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
-    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
+!    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%PtotalFreq         , size(p%FreqList)       , p%NrObsLoc                                                                   , 'y%PtotalFreq'         , errStat2 , errMsg2); if(Failed()) return
 
     y%WriteOutput        = 0.0_reki
@@ -525,7 +525,6 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     y%OASPL_Mech         = 0.0_reki
     y%SumSpecNoise       = 0.0_reki
     y%SumSpecNoiseSep    = 0.0_reki
-    y%OutLECoords        = 0.0_reki
     y%PtotalFreq         = 0.0_reki
 
 contains

@@ -264,7 +264,6 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: OASPL      !< summed noise level for each blade and blade nodes and receiver  [SPL]
     REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: OASPL_Mech      !< 5 different mechanism noise level for each blade and blade nodes and receiver  [SPL]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: DirectiviOutput      !<   [SPL]
-    REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: OutLECoords      !<   [m]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PtotalFreq      !< SPL for each observer and frequency [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WriteOutputForPE      !< Data to be written to an output file: see WriteOutputHdr for names of each variable [see WriteOutputUnt]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: WriteOutput      !< Data to be written to an output file: see WriteOutputHdr for names of each variable [see WriteOutputUnt]
@@ -2786,18 +2785,6 @@ subroutine AA_CopyOutput(SrcOutputData, DstOutputData, CtrlCode, ErrStat, ErrMsg
       end if
       DstOutputData%DirectiviOutput = SrcOutputData%DirectiviOutput
    end if
-   if (allocated(SrcOutputData%OutLECoords)) then
-      LB(1:4) = lbound(SrcOutputData%OutLECoords)
-      UB(1:4) = ubound(SrcOutputData%OutLECoords)
-      if (.not. allocated(DstOutputData%OutLECoords)) then
-         allocate(DstOutputData%OutLECoords(LB(1):UB(1),LB(2):UB(2),LB(3):UB(3),LB(4):UB(4)), stat=ErrStat2)
-         if (ErrStat2 /= 0) then
-            call SetErrStat(ErrID_Fatal, 'Error allocating DstOutputData%OutLECoords.', ErrStat, ErrMsg, RoutineName)
-            return
-         end if
-      end if
-      DstOutputData%OutLECoords = SrcOutputData%OutLECoords
-   end if
    if (allocated(SrcOutputData%PtotalFreq)) then
       LB(1:2) = lbound(SrcOutputData%PtotalFreq)
       UB(1:2) = ubound(SrcOutputData%PtotalFreq)
@@ -2882,9 +2869,6 @@ subroutine AA_DestroyOutput(OutputData, ErrStat, ErrMsg)
    if (allocated(OutputData%DirectiviOutput)) then
       deallocate(OutputData%DirectiviOutput)
    end if
-   if (allocated(OutputData%OutLECoords)) then
-      deallocate(OutputData%OutLECoords)
-   end if
    if (allocated(OutputData%PtotalFreq)) then
       deallocate(OutputData%PtotalFreq)
    end if
@@ -2912,7 +2896,6 @@ subroutine AA_PackOutput(RF, Indata)
    call RegPackAlloc(RF, InData%OASPL)
    call RegPackAlloc(RF, InData%OASPL_Mech)
    call RegPackAlloc(RF, InData%DirectiviOutput)
-   call RegPackAlloc(RF, InData%OutLECoords)
    call RegPackAlloc(RF, InData%PtotalFreq)
    call RegPackAlloc(RF, InData%WriteOutputForPE)
    call RegPackAlloc(RF, InData%WriteOutput)
@@ -2934,7 +2917,6 @@ subroutine AA_UnPackOutput(RF, OutData)
    call RegUnpackAlloc(RF, OutData%OASPL); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%OASPL_Mech); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%DirectiviOutput); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpackAlloc(RF, OutData%OutLECoords); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%PtotalFreq); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputForPE); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutput); if (RegCheckErr(RF, RoutineName)) return
