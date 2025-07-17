@@ -68,13 +68,11 @@ subroutine AA_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    integer(IntKi)                              :: errStat2      ! temporary error status of the operation
    character(ErrMsgLen)                        :: errMsg2       ! temporary error message 
    type(AA_InputFile)                          :: InputFileData ! Data stored in the module's input file
-   integer(IntKi)                              :: UnEcho        ! Unit number for the echo file
    character(*), parameter                     :: RoutineName = 'AA_Init'
    
    ! Initialize variables for this routine
    errStat = ErrID_None
    errMsg  = ""
-   UnEcho  = -1
    ! Initialize the NWTC Subroutine Library
    call NWTC_Init( EchoLibVer=.FALSE. )
    ! Display the module information
@@ -90,7 +88,7 @@ subroutine AA_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    p%RootName  = TRIM(InitInp%RootName)//'.'//trim(AA_Nickname)
    
    ! Read the primary AeroAcoustics input file in AeroAcoustics_IO
-   call ReadInputFiles( InitInp%InputFile, InitInp%AFInfo, InputFileData, interval, p%RootName, UnEcho, ErrStat2, ErrMsg2 )
+   call ReadInputFiles( InitInp%InputFile, InitInp%AFInfo, InputFileData, interval, p%RootName, ErrStat2, ErrMsg2 )
    if (Failed()) return
       
    ! Validate the inputs
@@ -128,7 +126,6 @@ contains
 
    subroutine Cleanup()
       CALL AA_DestroyInputFile( InputFileData, ErrStat2, ErrMsg2 )
-      IF ( UnEcho > 0 ) CLOSE( UnEcho )
    end subroutine Cleanup
 end subroutine AA_Init
 !----------------------------------------------------------------------------------------------------------------------------------
