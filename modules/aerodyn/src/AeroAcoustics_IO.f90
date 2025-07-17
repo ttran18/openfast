@@ -129,6 +129,7 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
     character(1024)               :: OutPath                                   ! Path name of the default output file
     character(200)                :: Line                                      ! Temporary storage of a line from the input file (to compare with "default")
     character(*), parameter       :: RoutineName = 'ReadPrimaryFile'
+    real(ReKi)                    :: TmpArray(3)
     ! Initialize some variables:
     ErrStat = ErrID_None
     ErrMsg  = ""
@@ -228,16 +229,17 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
           return
        end if
     
+    CALL ReadCom( UnIn2, ObserverFile, ' Header', ErrStat2, ErrMsg2, UnEc ); if (Failed()) return;
+
     ! Observer location in tower-base coordinate  (m):
     CALL AllocAry( InputFileData%ObsX,InputFileData%NrObsLoc, 'ObsX', ErrStat2, ErrMsg2); if (Failed()) return;
     CALL AllocAry( InputFileData%ObsY,InputFileData%NrObsLoc, 'ObsY', ErrStat2, ErrMsg2); if (Failed()) return;
     CALL AllocAry( InputFileData%ObsZ,InputFileData%NrObsLoc, 'ObsZ', ErrStat2, ErrMsg2); if (Failed()) return;
-    
-    CALL ReadCom( UnIn2, InputFile, ' Header', ErrStat2, ErrMsg2, UnEc ); if (Failed()) return;
-
     DO cou=1,InputFileData%NrObsLoc
-        READ( UnIn2, *, IOStat=IOS )  InputFileData%ObsX(cou), InputFileData%ObsY(cou), InputFileData%ObsZ(cou)
-        CALL CheckIOS( IOS, ObserverFile, 'Obeserver Locations '//TRIM(Num2LStr(cou)), NumType, ErrStat2, ErrMsg2 ); if (Failed()) return;
+        CALL ReadAry( UnIn2, ObserverFile, TmpArray, SIZE(TmpArray), 'Observer Locations Line '//trim(Num2LStr(cou)), 'Observer Locations', ErrStat2, ErrMsg2, UnEc); if (Failed()) return;
+        InputFileData%ObsX(cou) = TmpArray(1)
+        InputFileData%ObsY(cou) = TmpArray(2)
+        InputFileData%ObsZ(cou) = TmpArray(3)
     ENDDO
     CLOSE ( UnIn2 )
     UnIn2 = -1
