@@ -90,7 +90,7 @@ SUBROUTINE ReadInputFiles( InputFileName, AFI, InputFileData, Default_DT, OutFil
         return
     END IF
 
-    if ((InputFileData%ITURB==2) .or. (InputFileData%X_BLMethod==X_BLMethod_Tables) .or. (InputFileData%IBLUNT==1)) then
+    if (InputFileData%ITURB==ITURB_TNO .or. InputFileData%X_BLMethod==X_BLMethod_Tables .or. InputFileData%IBLUNT==IBLUNT_BPM) then
         ! We need to read the BL tables
         CALL ReadBLTables( InputFileName, AFI, InputFileData, UnEcho, ErrStat2, ErrMsg2 )
         if (Failed()) return
@@ -394,7 +394,7 @@ SUBROUTINE ReadBLTables( InputFile, AFI, InputFileData, UnEc, ErrStat, ErrMsg )
         enddo
 
 
-        if (InputFileData%IBLUNT==1) then
+        if (InputFileData%IBLUNT==IBLUNT_BPM) then
             call ReadCom(UnIn, FileName, 'Comment' , ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
             call ReadCom(UnIn, FileName, 'Comment' , ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
             call ReadVar(UnIn, FileName, InputFileData%BladeProps(iAF)%TEAngle, 'TEAngle', 'TE Angle',ErrStat2, ErrMsg2, UnEc ); if(Failed()) return

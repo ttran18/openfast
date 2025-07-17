@@ -32,6 +32,7 @@ module AeroAcoustics
    implicit none
 
    private
+   
    ! ..... Public Subroutines ...................................................................................................
    public :: AA_Init                           ! Initialization routine
    public :: AA_End                            ! Ending routine (includes clean up)
@@ -193,15 +194,15 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
 
     ! Check 1
     tri=.true.
-    IF( (p%ITURB.eq.2) .or. (p%IInflow.gt.1) )then
+    IF( (p%ITURB.eq.ITURB_TNO) .or. p%IInflow == IInflow_FullGuidati .OR. p%IInflow == IInflow_SimpleGuidati )then
         ! if tno is on or one of the guidati models is on, check if we have airfoil coordinates
         DO k=1,size(p%AFInfo) ! if any of the airfoil coordinates are missing change calculation method
             IF( p%AFInfo(k)%NumCoords .lt. 5 )then
                 IF (tri) then ! Print the message for once only
                     CALL WrScr( 'Airfoil coordinates are missing: If Full or Simplified Guidati or Bl Calculation is on coordinates are needed ' )
                     CALL WrScr( 'Calculation methods enforced as BPM for TBLTE and only Amiet for inflow ' )
-                    p%ITURB   = 1
-                    p%IInflow = 1
+                    p%ITURB   = ITURB_BPM
+                    p%IInflow = IInflow_BPM
                     tri=.false.
                 ENDIF
             ENDIF
@@ -210,15 +211,11 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     
     ! Check 2
     ! if passed the first check and if tno, turn on boundary layer calculation
-    IF( (p%ITURB.eq.2)) then
-        p%X_BLMethod=X_BLMethod_Tables
-    ENDIF
+    IF( (p%ITURB.eq.ITURB_TNO)) p%X_BLMethod=X_BLMethod_Tables
     
     ! Check 3
     ! if boundary layer is tripped then laminar b.l. vortex shedding mechanism is turned off
-    IF( p%ITRIP.gt.0  )then
-        p%ILAM=0
-    ENDIF
+    IF( p%ITRIP /= ITRIP_None  ) p%ILAM=ILAM_None
 
     ! set 1/3 octave band frequency as parameter and A weighting.
     CALL AllocAry( p%FreqList, 34, 'FreqList', ErrStat2, ErrMsg2); if(Failed()) return
@@ -253,7 +250,7 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     call AllocAry(p%TEThick   ,p%NumBlNds,p%NumBlades,'p%TEThick'   ,ErrStat2,ErrMsg2); if(Failed()) return
     call AllocAry(p%TEAngle   ,p%NumBlNds,p%NumBlades,'p%TEAngle'   ,ErrStat2,ErrMsg2); if(Failed()) return
     call AllocAry(p%StallStart,p%NumBlNds,p%NumBlades,'p%StallStart',ErrStat2,ErrMsg2); if(Failed()) return
-    p%StallStart(:,:) = 0.0_ReKi
+    p%StallStart = 0.0_ReKi
 
      do i=1,p%NumBlades    
         do j=1,p%NumBlNds
@@ -359,8 +356,8 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
         if(Failed()) return
     endif
 
-    ! If simplified guidati is on, calculate the airfoil thickness at 1% and at 10% chord from input airfoil coordinates
-    IF (p%IInflow .EQ. 2) THEN
+    ! If guidati is on, calculate the airfoil thickness at 1% and at 10% chord from input airfoil coordinates
+    IF (p%IInflow .EQ. IInflow_FullGuidati) THEN
         call AllocAry(p%AFThickGuida,2,size(p%AFInfo),  'p%AFThickGuida', errStat2, errMsg2); if(Failed()) return
         p%AFThickGuida=0.0_Reki
 
@@ -1031,21 +1028,26 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
             DO K = 1,p%NrObsLoc 
                 !--------Laminar Boundary Layer Vortex Shedding Noise----------------------------!
-                IF ( (p%ILAM .EQ. 1) .AND. (p%ITRIP .EQ. 0) )    THEN
+                IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )    THEN
                     CALL LBLVS(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                         elementspan,m%rTEtoObserve(K,J,I), &
                         p,m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLLBL,p%StallStart(J,I),errStat2,errMsg2)
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Turbulent Boundary Layer Trailing Edge Noise----------------------------!
-                IF (   (p%ITURB .EQ. 1) .or. (p%ITURB .EQ. 2) )   THEN
+                IF ( p%ITURB /= ITURB_None )   THEN
+                   
                     CALL TBLTE(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                     elementspan,m%rTEtoObserve(K,J,I), p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),p%StallStart(J,I), &
                     m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL,errStat2,errMsg2 )
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
-                    IF (p%ITURB .EQ. 2)  THEN
-                        m%SPLP=0.0_ReKi;m%SPLS=0.0_ReKi;m%SPLTBL=0.0_ReKi;
-                        m%EdgeVelVar(1)=1.000d0;m%EdgeVelVar(2)=m%EdgeVelVar(1);
+                    
+                    IF (p%ITURB .EQ. ITURB_TNO)  THEN
+                        m%SPLP=0.0_ReKi;
+                        m%SPLS=0.0_ReKi;
+                        m%SPLTBL=0.0_ReKi;
+                        m%EdgeVelVar(1)=1.000d0;
+                        m%EdgeVelVar(2)=m%EdgeVelVar(1);
                         CALL TBLTE_TNO(UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                             elementspan,m%rTEtoObserve(K,J,I),m%CfVar,m%d99var,m%EdgeVelVar ,p, &
                             m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL,errStat2 ,errMsg2)
@@ -1053,42 +1055,43 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                     ENDIF
                 ENDIF
                 !--------Blunt Trailing Edge Noise----------------------------------------------!
-                IF ( p%IBLUNT .EQ. 1 )   THEN                                          
+                IF ( p%IBLUNT .EQ. IBLUNT_BPM )   THEN                                          
                     CALL BLUNT(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                     elementspan,m%rTEtoObserve(K,J,I),p%TEThick(J,I),p%TEAngle(J,I), &
                     p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT,p%StallStart(J,I),errStat2,errMsg2 )
-                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
+                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Tip Noise--------------------------------------------------------------!
-                IF (  (p%ITIP .EQ. 1) .AND. (J .EQ. p%NumBlNds)  ) THEN 
+                IF (  (p%ITIP .EQ. ITIP_ON) .AND. (J .EQ. p%NumBlNds)  ) THEN 
                     CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                         m%rTEtoObserve(K,J,I), p, m%SPLTIP,errStat2,errMsg2)
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
                 !--------Inflow Turbulence Noise ------------------------------------------------!
                 ! important checks to be done inflow tubulence inputs
-                IF (p%IInflow.gt.0) then
+                IF (p%IInflow /= IInflow_None) then
 
                     ! Amiet's Inflow Noise Model is Calculated as long as InflowNoise is On
                     CALL InflowNoise(AlphaNoise,p%BlChord(J,I),Unoise,m%ChordAngleLE(K,J,I),m%SpanAngleLE(K,J,I),&
                         elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti,errStat2,errMsg2 )
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
+                    
                     ! If Guidati model (simplified or full version) is also on then the 'SPL correction' to Amiet's model will be added 
-                    IF ( p%IInflow .EQ. 2 )   THEN      
+                    IF ( p%IInflow .EQ. IInflow_FullGuidati )   THEN      
                         CALL Simple_Guidati(UNoise,p%BlChord(J,I),p%AFThickGuida(2,p%BlAFID(J,I)), &
                             p%AFThickGuida(1,p%BlAFID(J,I)),p,m%SPLTIGui,errStat2,errMsg2 )
                         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
                         m%SPLti=m%SPLti+m%SPLTIGui + 10. ! +10 is fudge factor to match NLR data
-                    ELSEIF ( p%IInflow .EQ. 3 )   THEN                                     
+                    ELSEIF ( p%IInflow .EQ. IInflow_SimpleGuidati )   THEN
                        call setErrStat(ErrID_Fatal,'Full Guidati removed',ErrStat, ErrMsg,RoutineName)
                        return
-                    ENDIF    
+                    ENDIF
                 ENDIF
                 !----------------------------------------------------------------------------------------------------------------------------------!
                 !      ADD IN THIS SEGMENT'S CONTRIBUTION ON A MEAN-SQUARE
                 !      PRESSURE BASIS
                 !----------------------------------------------------------------------------------------------------------------------------------!
-                Ptotal = 0.0_ReKi         ! Total Sound Pressure - All (7) mechanisms, All Frequencies
+               Ptotal = 0.0_ReKi         ! Total Sound Pressure - All (7) mechanisms, All Frequencies
                PtotalLBL= 0.0_ReKi        ! Total Sound Pressure - Laminar Boundary Layer, All Frequencies
                PtotalTBLP= 0.0_ReKi       ! Total Sound Pressure - Turbulent Boundary Layer, Pressure Contribution, All Frequencies
                PtotalTBLS= 0.0_ReKi       ! Total Sound Pressure - Turbulent Boundary Layer, Suction Contribution, All Frequencies
@@ -1109,7 +1112,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                DO III=1,size(p%FreqList)   ! Loops through each 1/3rd octave center frequency 
          
                   ! If flag for LBL is ON and Boundary Layer Trip is OFF, then compute LBL
-                  IF ( (p%ILAM .EQ. 1) .AND. (p%ITRIP .EQ. 0) )  THEN
+                  IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )  THEN
                      IF (p%AweightFlag .eqv. .TRUE.) THEN
                          m%SPLLBL(III) = m%SPLLBL(III) + p%Aweight(III)                ! A-weighting
                      ENDIF
@@ -1124,7 +1127,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                   ENDIF
 
                   ! If flag for TBL is ON, compute Pressure, Suction, and AoA contributions
-                  IF ( p%ITURB .GT. 0 )  THEN
+                  IF ( p%ITURB /= ITURB_None )  THEN
                      IF (p%AweightFlag .eqv. .TRUE.) THEN
                         m%SPLP(III) = m%SPLP(III) + p%Aweight(III)                     ! A-weighting
                         m%SPLS(III) = m%SPLS(III) + p%Aweight(III)                     ! A-weighting
@@ -1149,7 +1152,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                   ENDIF
 
                   ! If flag for Blunt TE is ON, compute Blunt contribution
-                  IF ( p%IBLUNT .GT. 0 )  THEN                                            ! NOTE: .EQ. 1 would be more accurate since only options are 0 and 1
+                  IF ( p%IBLUNT /= IBLUNT_None )  THEN
                      IF (p%AweightFlag .eqv. .TRUE.) THEN
                         m%SPLBLUNT(III) = m%SPLBLUNT(III) + p%Aweight(III)                ! A-weighting
                      ENDIF
@@ -1164,7 +1167,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                   ENDIF
 
                   ! If flag for Tip is ON and the current blade node (J) is the last node (tip), compute Tip contribution
-                  IF ( (p%ITIP .GT. 0) .AND. (J .EQ. p%NumBlNds) )  THEN                  ! NOTE: .EQ. 1 would again be more accurate
+                  IF ( (p%ITIP == ITIP_ON) .AND. (J .EQ. p%NumBlNds) )  THEN
                      IF (p%AweightFlag .eqv. .TRUE.) THEN
                         m%SPLTIP(III) = m%SPLTIP(III) + p%Aweight(III)                    ! A-weighting
                      ENDIF
@@ -1179,7 +1182,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                   ENDIF
 
                   ! If flag for TI is ON, compute Turbulent Inflow contribution
-                  IF ( (p%IInflow .GT. 0)  )  THEN
+                  IF ( (p%IInflow /= IInflow_None)  )  THEN
                      IF (p%AweightFlag .eqv. .TRUE.) THEN
                         m%SPLti(III) = m%SPLti(III) + p%Aweight(III)                      ! A-weighting
                      ENDIF
@@ -1205,7 +1208,8 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
     ! If any Output file is wanted, convert DirectiviOutput from Directivity Factor to Directivity Index
     ! Ref: Fundamentals of Acoustics by Colin Hansen (1951)
-    y%DirectiviOutput = 10.*LOG10(y%DirectiviOutput)        !! DirectiviOutput is used as total observer OASPL for Output File 1   
+    y%DirectiviOutput = 10.*LOG10(y%DirectiviOutput)        !! DirectiviOutput is used as total observer OASPL for Output File 1
+    
     ! Since these will all be converted via LOG10, they will produce an error if .EQ. 0., Set .EQ. to 1 instead (LOG10(1)=0)
     DO I = 1,p%numBlades
         DO J = 1,p%NumBlNds
@@ -2094,18 +2098,18 @@ SUBROUTINE THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat,errMsg)
     ErrMsg  = ""
     ! Boundary layer thickness
     DELTA0                     = 10.**(1.6569-0.9045*LOG10(RC)+0.0596*LOG10(RC)**2)*C ! (untripped)         Eq. (5) of [1]
-    IF (p%ITRIP .GT. 0) DELTA0 = 10.**(1.892 -0.9045*LOG10(RC)+0.0596*LOG10(RC)**2)*C ! (heavily tripped)   Eq. (2) of [1]
-    IF (p%ITRIP .EQ. 2) DELTA0=.6*DELTA0
+    IF (p%ITRIP /= ITRIP_None) DELTA0 = 10.**(1.892 -0.9045*LOG10(RC)+0.0596*LOG10(RC)**2)*C ! (heavily tripped)   Eq. (2) of [1]
+    IF (p%ITRIP .EQ. ITRIP_Light) DELTA0=.6*DELTA0
     ! Pressure side boundary layer thickness, Eq (8) of [1]
     DELTAP   = 10.**(-.04175*ALPSTAR+.00106*ALPSTAR**2)*DELTA0
     ! Compute zero angle of attack displacement thickness
-    IF ((p%ITRIP .EQ. 1) .OR. (p%ITRIP .EQ. 2)) THEN
+    IF (p%ITRIP /= ITRIP_None) THEN
         ! Heavily tripped, Eq. (3) of [1]
         IF (RC .LE. .3E+06) DSTR0 = .0601 * RC **(-.114)*C
         IF (RC .GT. .3E+06) &
             DSTR0=10.**(3.411-1.5397*LOG10(RC)+.1059*LOG10(RC)**2)*C
         ! Lightly tripped
-        IF (p%ITRIP .EQ. 2) DSTR0 = DSTR0 * .6
+        IF (p%ITRIP .EQ. ITRIP_Light) DSTR0 = DSTR0 * .6
     ELSE
         ! Untripped, Eq. (6) of [1]
         DSTR0=10.**(3.0187-1.5397*LOG10(RC)+.1059*LOG10(RC)**2)*C
@@ -2114,7 +2118,7 @@ SUBROUTINE THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat,errMsg)
     DSTRP   = 10.**(-.0432*ALPSTAR+.00113*ALPSTAR**2)*DSTR0
     !      IF (p%ITRIP .EQ. 3) DSTRP = DSTRP * 1.48 ! commented since itrip is never 3 check if meant 2.(EB_DTU)
     ! Suction side displacement thickness
-    IF (p%ITRIP .EQ. 1) THEN
+    IF (p%ITRIP .EQ. ITRIP_Heavy) THEN
         ! Heavily tripped, Eq. (12) of [1]
         IF (ALPSTAR .LE. 5.) DSTRS=10.**(.0679*ALPSTAR)*DSTR0
         IF((ALPSTAR .GT. 5.).AND.(ALPSTAR .LE. StallVal)) &

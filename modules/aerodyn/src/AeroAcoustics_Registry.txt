@@ -55,11 +55,11 @@ typedef     ^                   InitOutputType       ReKi                AirDens
 # ..... Primary Input file data ...................................................................................................
 typedef     ^                   AA_InputFile         DbKi                DT_AA            -     -     -     "Time interval for aerodynamic calculations {or \"default\"}"     s
 typedef     ^                   AA_InputFile         IntKi               IBLUNT           -     -     -     "FLAG TO COMPUTE BLUNTNESS NOISE"     -
-typedef     ^                   AA_InputFile         IntKi               ILAM             -     -     -     "FLAG TO COMPUTE LBL NOISE {1=steady model, 2=Beddoes-Leishman unsteady model}"     -
-typedef     ^                   AA_InputFile         IntKi               ITIP             -     -     -     "FLAG TO COMPUTE TIP NOISE {0=none, 1=baseline potential flow, 2=potential flow with Bak correction}"     -
-typedef     ^                   AA_InputFile         IntKi               ITRIP            -     -     -     "FLAG TO TRIP BOUNDARY LAYER {0=none, 1=baseline potential flow, 2=potential flow with Bak correction}"     -
-typedef     ^                   AA_InputFile         IntKi               ITURB            -     -     -     "FLAG TO COMPUTE TBLTE NOISE {0=none, 1=baseline potential flow, 2=potential flow with Bak correction}"     -
-typedef     ^                   AA_InputFile         IntKi               IInflow          -     -     -     "FLAG TO COMPUTE Turbulent Inflow NOISE {0=none, 1=baseline potential flow, 2=potential flow with Bak correction}"     -
+typedef     ^                   AA_InputFile         IntKi               ILAM             -     -     -     "FLAG TO COMPUTE LBL NOISE {0=off, 1=BPM calculation}"     -
+typedef     ^                   AA_InputFile         IntKi               ITIP             -     -     -     "FLAG TO COMPUTE TIP NOISE {0=off, 1=on}"     -
+typedef     ^                   AA_InputFile         IntKi               ITRIP            -     -     -     "FLAG TO TRIP BOUNDARY LAYER {0=none, 1 (heavily tripped BL Calculation), 2 (lightly tripped BL)}"     -
+typedef     ^                   AA_InputFile         IntKi               ITURB            -     -     -     "FLAG TO COMPUTE TBLTE NOISE {0=none, 1 (BPM), 2 (TNO)}"     -
+typedef     ^                   AA_InputFile         IntKi               IInflow          -     -     -     "FLAG TO COMPUTE Turbulent Inflow NOISE {0=none, 1 (only Amiet), 2 (Full Guidati), 3 (Simplified Guidati)}"     -
 typedef     ^                   AA_InputFile         IntKi               X_BLMethod       -     -     -     "Integer describing calculation method for boundary layer properties,  = 1 BPM = 2 Pretabulated"     -
 typedef     ^                   AA_InputFile         IntKi               TICalcMeth       -     -     -     "TICalcMeth"     -
 typedef     ^                   AA_InputFile         IntKi               NReListBL        -     -     -    "Number of values of ReListBL"     -
