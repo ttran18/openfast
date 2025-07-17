@@ -361,7 +361,7 @@ SUBROUTINE ReadBLTables( InputFile, AFI, InputFileData, UnEc, ErrStat, ErrMsg )
             if (iAF == 1) then
                InputFileData%ReListBL(iRe) = TempRe  * 1.e+006
             else
-               if ( nRe > 1 .AND. .NOT. EqualRealNos(InputFileData%ReListBL(iRe)* 1.e+006, TempRe ) ) then
+               if ( nRe > 1 .AND. .NOT. EqualRealNos(InputFileData%ReListBL(iRe), TempRe * 1.e+006 ) ) then
                   call SetErrStat(ErrID_Fatal,'All aeroacoustics airfoil BL tables must have the same Reynolds Numbers.',ErrStat, ErrMsg, RoutineName)
                   call cleanup()
                   return
