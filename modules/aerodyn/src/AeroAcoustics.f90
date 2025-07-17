@@ -508,10 +508,7 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     call AllocAry(y%DirectiviOutput    , p%NrObsLoc                                                                                            , 'y%DirectiviOutput'    , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%WriteOutputNode    , p%NumOutsForNodes                                                                                     , 'y%WriteOutputSepFreq' , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%OASPL              , p%NrObsLoc             , p%NumBlNds                , p%NumBlades                                      , 'y%OASPL'              , errStat2 , errMsg2); if(Failed()) return
-!    call AllocAry(y%SumSpecNoise       , size(p%FreqList)       , p%NrObsLoc                , p%NumBlades                                      , 'y%SumSpecNoise'       , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%SumSpecNoiseSep    , nNoiseMechanism        , size(p%FreqList)          , p%NrObsLoc                                       , 'y%SumSpecNoiseSep'    , errStat2 , errMsg2); if(Failed()) return
-!    call AllocAry(y%OASPL_Mech         , nNoiseMechanism        , p%NrObsLoc                , p%NumBlNds                 , p%NumBlades         , 'y%OASPL_Mech'         , errStat2 , errMsg2); if(Failed()) return
-!    call AllocAry(y%OutLECoords        , 3                      , size(p%FreqList)          , p%NrObsLoc                 , p%NumBlades         , 'y%OutLECoords'        , errStat2 , errMsg2); if(Failed()) return
     call AllocAry(y%PtotalFreq         , size(p%FreqList)       , p%NrObsLoc                                                                   , 'y%PtotalFreq'         , errStat2 , errMsg2); if(Failed()) return
 
     y%WriteOutput        = 0.0_reki
