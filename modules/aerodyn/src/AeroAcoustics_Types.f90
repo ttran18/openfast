@@ -93,7 +93,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: ObsZ      !< Observer location in tower-base coordinate Z vertical [m]
     TYPE(AA_BladePropsType) , DIMENSION(:), ALLOCATABLE  :: BladeProps      !< blade property information from blade input files [-]
     INTEGER(IntKi)  :: NrOutFile = 0_IntKi      !< Nr of output files [-]
-    CHARACTER(1024) , DIMENSION(:), ALLOCATABLE  :: AAoutfile      !< AAoutfile for writing output files [-]
+    CHARACTER(1024) , DIMENSION(1:4)  :: AAoutfile      !< AAoutfile for writing output files [-]
     CHARACTER(1024)  :: FTitle      !< File Title: the 2nd line of the input file, which contains a description of its contents [-]
     REAL(DbKi)  :: AAStart = 0.0_R8Ki      !< Time after which to calculate AA [s]
     REAL(ReKi)  :: TI = 0.0_ReKi      !< Average rotor incident turbulence intensity [-]
@@ -756,18 +756,7 @@ subroutine AA_CopyInputFile(SrcInputFileData, DstInputFileData, CtrlCode, ErrSta
       end do
    end if
    DstInputFileData%NrOutFile = SrcInputFileData%NrOutFile
-   if (allocated(SrcInputFileData%AAoutfile)) then
-      LB(1:1) = lbound(SrcInputFileData%AAoutfile)
-      UB(1:1) = ubound(SrcInputFileData%AAoutfile)
-      if (.not. allocated(DstInputFileData%AAoutfile)) then
-         allocate(DstInputFileData%AAoutfile(LB(1):UB(1)), stat=ErrStat2)
-         if (ErrStat2 /= 0) then
-            call SetErrStat(ErrID_Fatal, 'Error allocating DstInputFileData%AAoutfile.', ErrStat, ErrMsg, RoutineName)
-            return
-         end if
-      end if
-      DstInputFileData%AAoutfile = SrcInputFileData%AAoutfile
-   end if
+   DstInputFileData%AAoutfile = SrcInputFileData%AAoutfile
    DstInputFileData%FTitle = SrcInputFileData%FTitle
    DstInputFileData%AAStart = SrcInputFileData%AAStart
    DstInputFileData%TI = SrcInputFileData%TI
@@ -924,9 +913,6 @@ subroutine AA_DestroyInputFile(InputFileData, ErrStat, ErrMsg)
       end do
       deallocate(InputFileData%BladeProps)
    end if
-   if (allocated(InputFileData%AAoutfile)) then
-      deallocate(InputFileData%AAoutfile)
-   end if
    if (allocated(InputFileData%ReListBL)) then
       deallocate(InputFileData%ReListBL)
    end if
@@ -994,7 +980,7 @@ subroutine AA_PackInputFile(RF, Indata)
       end do
    end if
    call RegPack(RF, InData%NrOutFile)
-   call RegPackAlloc(RF, InData%AAoutfile)
+   call RegPack(RF, InData%AAoutfile)
    call RegPack(RF, InData%FTitle)
    call RegPack(RF, InData%AAStart)
    call RegPack(RF, InData%TI)
@@ -1054,7 +1040,7 @@ subroutine AA_UnPackInputFile(RF, OutData)
       end do
    end if
    call RegUnpack(RF, OutData%NrOutFile); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpackAlloc(RF, OutData%AAoutfile); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%AAoutfile); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%FTitle); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%AAStart); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%TI); if (RegCheckErr(RF, RoutineName)) return

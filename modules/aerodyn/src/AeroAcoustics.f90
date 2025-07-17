@@ -87,7 +87,7 @@ subroutine AA_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
 
    !bjj: note that we haven't validated p%NumBlades before using it below!
    p%NumBlades = InitInp%NumBlades ! need this before reading the AD input file so that we know how many blade files to read
-   p%RootName  = TRIM(InitInp%RootName)//'.NN'
+   p%RootName  = TRIM(InitInp%RootName)//'.'//trim(AA_Nickname)
    
    ! Read the primary AeroAcoustics input file in AeroAcoustics_IO
    call ReadInputFiles( InitInp%InputFile, InitInp%AFInfo, InputFileData, interval, p%RootName, UnEcho, ErrStat2, ErrMsg2 )

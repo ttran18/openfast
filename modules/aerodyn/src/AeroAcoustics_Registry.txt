@@ -73,7 +73,7 @@ typedef     ^                   AA_InputFile         ReKi                ObsY   
 typedef     ^                   AA_InputFile         ReKi                ObsZ            {:}    -     -     "Observer location in tower-base coordinate Z vertical"          m
 typedef     ^                   AA_InputFile         AA_BladePropsType   BladeProps      {:}    -     -     "blade property information from blade input files"     -
 typedef     ^                   AA_InputFile         IntKi               NrOutFile        -     -     -     "Nr of output files"     -
-typedef     ^                   AA_InputFile         CHARACTER(1024)     AAoutfile       {:}    -     -     "AAoutfile for writing output files"     -
+typedef     ^                   AA_InputFile         CHARACTER(1024)     AAoutfile       {4}    -     -     "AAoutfile for writing output files"     -
 typedef     ^                   AA_InputFile         CHARACTER(1024)     FTitle           -     -     -     "File Title: the 2nd line of the input file, which contains a description of its contents" -
 typedef     ^                   AA_InputFile         DBKi                AAStart         -     -     -     "Time after which to calculate AA"     s
 typedef     ^                   AA_InputFile         ReKi                TI              -     -     -     "Average rotor incident turbulence intensity" -

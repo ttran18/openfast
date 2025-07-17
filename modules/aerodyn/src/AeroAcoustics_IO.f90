@@ -121,6 +121,7 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
     logical                       :: Echo                                      ! Determines if an echo file should be written
     character(ErrMsgLen)          :: ErrMsg2                                   ! Temporary Error message
     character(1024)               :: PriPath                                   ! Path name of the primary file
+    character(1024)               :: OutPath                                   ! Path name of the default output file
     character(200)                :: Line                                      ! Temporary storage of a line from the input file (to compare with "default")
     character(*), parameter       :: RoutineName = 'ReadPrimaryFile'
     ! Initialize some variables:
@@ -154,7 +155,7 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
 
         !----------- GENERAL OPTIONS ----------------------------------------------------
         CALL ReadCom( UnIn, InputFile, 'Section Header: General Options', ErrStat2, ErrMsg2, UnEc ); call check()
-        ! Echo - Echo input to "<RootName>.AD.ech".
+        ! Echo - Echo input to "<RootName>.AD.AA.ech".
         CALL ReadVar( UnIn, InputFile, Echo, 'Echo',   'Echo flag', ErrStat2, ErrMsg2, UnEc); call check()
         IF (.NOT. Echo .OR. I > 1) EXIT !exit this loop
         ! Otherwise, open the echo file, then rewind the input file and echo everything we've read
@@ -255,18 +256,28 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
     CALL ReadCom( UnIn, InputFile, 'Section Header: Outputs', ErrStat2, ErrMsg2, UnEc); call check()
     CALL ReadVar( UnIn,InputFile,InputFileData%aweightflag  ,"AWeighting"   ,"" ,ErrStat2,ErrMsg2,UnEc); call check()
     CALL ReadVar( UnIn, InputFile, InputFileData%NrOutFile, "NrOutFile", "Nr of Output Files (-)", ErrStat2, ErrMsg2, UnEc); call check()
-    CALL AllocAry( InputFileData%AAOutFile,InputFileData%NrOutFile, 'AAOutFile', ErrStat2, ErrMsg2); call check()
+    if (InputFileData%NrOutFile < 1 .OR. InputFileData%NrOutFile > 4) then
+       call SetErrStat(ErrID_Fatal, "NrOutFile must be a value between 1 and 4.", ErrStat, ErrMsg, RoutineName)
+       CALL Cleanup( )
+       return
+    end if
+    
     CALL ReadVar ( UnIn, InputFile, InputFileData%AAOutFile(1), 'AAOutFile', 'Name of output file ', ErrStat2, ErrMsg2, UnEc ); call check()
+    Line = InputFileData%AAOutFile(1)
+    call Conv2UC(Line)
+    IF ( INDEX(Line, "DEFAULT" ) /= 1 ) THEN 
+       IF ( PathIsRelative( InputFileData%AAOutFile(1) ) ) then
+          CALL GetPath( OutFileRoot, OutPath )   ! Output files will be relative to the path where the primary output file is located.
+          InputFileData%AAOutFile(1) = TRIM(OutPath)//TRIM(InputFileData%AAOutFile(1))
+       END IF
+    ELSE ! use default program root
+       InputFileData%AAOutFile(1) = TRIM(OutFileRoot)
+    ENDIF
     DO I=InputFileData%NrOutFile,1,-1
-        ! one file name is given by the user and the XXFile1.out XXFile2.out XXFile3.out is generated
-        IF ( PathIsRelative( InputFileData%AAOutFile(I) ) ) InputFileData%AAOutFile(I) = TRIM(PriPath)//TRIM(InputFileData%AAOutFile(1))//TRIM(Num2Lstr(I))//".out"
+       ! one file name is given by the user and the XXFile1.out XXFile2.out XXFile3.out is generated
+       InputFileData%AAOutFile(I) = TRIM(InputFileData%AAOutFile(1))//TRIM(Num2Lstr(I))//".out"
     ENDDO
 
-    ! Return on error at end of section
-    IF ( ErrStat >= AbortErrLev ) THEN
-        CALL Cleanup()
-        RETURN
-    END IF
     !---------------------- END OF FILE -----------------------------------------
     CALL Cleanup( )
 
