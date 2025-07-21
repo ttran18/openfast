@@ -39,6 +39,8 @@ module AeroAcoustics
    public :: AA_UpdateStates                   ! Loose coupling routine for solving for constraint states, integrating
                                                !   continuous states, and updating discrete states
    public :: AA_CalcOutput                     ! Routine for computing outputs
+   
+   REAL(ReKi), parameter :: AA_u_min = 0.1_ReKi
 
    contains    
 !----------------------------------------------------------------------------------------------------------------------------------   
@@ -980,9 +982,10 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             !ENDIF
 
             Unoise =  u%Vrel(J,I) 
-            IF (EqualRealNos(Unoise,0.0_ReKi)) then
-                Unoise = 0.1 ! TODO TODO a value consistent with the test above should be used
+            IF (abs(Unoise) < AA_u_min) then
+               Unoise = SIGN(AA_u_min, Unoise)
             ENDIF
+            
             IF (J .EQ. p%NumBlNds) THEN
                 elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2 
             ELSE
