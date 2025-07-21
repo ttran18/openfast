@@ -381,10 +381,15 @@ SUBROUTINE ReadBLTables( InputFile, AFI, InputFileData, UnEc, ErrStat, ErrMsg )
             CALL ReadCom(UnIn, FileName, "(deg)   (-)            (-)             (-)          (-)        (-)        (-)         (-)     (-)",   ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 
             do iAoA=1,nAoA
-               CALL ReadAry( UnIn, FileName, Buffer, SIZE(Buffer), 'BL Table Line '//Num2LStr(iAoA+8), 'BL Table for suction and pressure', ErrStat2, ErrMsg2, UnEc) ! From NWTC_Library
+                CALL ReadAry( UnIn, FileName, Buffer, SIZE(Buffer), 'BL Table Line '//Num2LStr(iAoA+8), 'BL Table for suction and pressure', ErrStat2, ErrMsg2, UnEc) ! From NWTC_Library
+                if(Failed()) return
+               
+                Buffer(1) = Buffer(1)*D2R ! convert to radians
+                call MPi2Pi( Buffer(1)  ) ! convert to radians between -pi and pi
+                Buffer(1) = Buffer(1)*R2D ! convert back to degrees
                
                 if (iAF == 1 .AND. iRe == 1) then
-                   InputFileData%AoAListBL(iAoA) = Buffer( 1) ! AoA
+                   InputFileData%AoAListBL(iAoA) = Buffer( 1) ! AoA in degrees
                    
                   if (iAoA > 1) then
 

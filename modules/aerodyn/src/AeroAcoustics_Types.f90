@@ -253,7 +253,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:,:,:), ALLOCATABLE  :: RotGtoL      !< 3x3 rotation matrix transform a vector from the local airfoil coordinate system to the global inertial coordinate system [-]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: AeroCent_G      !< location in global coordinates of the blade element aerodynamic center.  1st index = vector components, 2nd index = blade node, 3rd index = blade [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: Vrel      !< Vrel [-]
-    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: AoANoise      !< Angle of attack [-]
+    REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: AoANoise      !< Angle of attack [rad]
     REAL(ReKi) , DIMENSION(:,:,:), ALLOCATABLE  :: Inflow      !< atmospheric undisturbed flow on blade [-]
   END TYPE AA_InputType
 ! =======================
