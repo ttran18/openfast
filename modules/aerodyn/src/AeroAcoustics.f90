@@ -319,41 +319,19 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     ENDDO
 
     if (p%X_BLMethod .eq. X_BLMethod_Tables) then
-
         ! Copying inputdata list of AOA and Reynolds to parameters
         call MOVE_ALLOC(InputFileData%AOAListBL,p%AOAListBL)
         call MOVE_ALLOC(InputFileData%ReListBL,p%ReListBL)
         
-        ! Allocate the suction and pressure side boundary layer parameters for output - will be used as tabulated data
-        call AllocAry(p%dstarall1  ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%dstarall1'  , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%dstarall2  ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%dstarall2'  , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%d99all1    ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%d99all1'    , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%d99all2    ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%d99all2'    , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%Cfall1     ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%Cfall1'     , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%Cfall2     ,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%Cfall2'     , errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%EdgeVelRat1,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%EdgeVelRat1', errStat2, errMsg2); if(Failed()) return
-        call AllocAry(p%EdgeVelRat2,size(p%AOAListBL), size(p%ReListBL),size(p%AFInfo),'p%EdgeVelRat2', errStat2, errMsg2); if(Failed()) return
-        p%dstarall1   =0.0_ReKi
-        p%dstarall2   =0.0_ReKi
-        p%d99all1     =0.0_ReKi
-        p%d99all2     =0.0_ReKi
-        p%Cfall1      =0.0_ReKi
-        p%Cfall2      =0.0_ReKi
-        p%EdgeVelRat1 =0.0_ReKi
-        p%EdgeVelRat2 =0.0_ReKi
-
-
         ! --- BL data are read from files and just copy what was read from the files
-        p%dstarall1   = InputFileData%Suct_DispThick
-        p%dstarall2   = InputFileData%Pres_DispThick
-        p%d99all1     = InputFileData%Suct_BLThick
-        p%d99all2     = InputFileData%Pres_BLThick
-        p%Cfall1      = InputFileData%Suct_Cf
-        p%Cfall2      = InputFileData%Pres_Cf
-        p%EdgeVelRat1 = InputFileData%Suct_EdgeVelRat
-        p%EdgeVelRat2 = InputFileData%Pres_EdgeVelRat
-        
-        if(Failed()) return
+        call MOVE_ALLOC(InputFileData%Suct_DispThick  , p%dstarall1   )
+        call MOVE_ALLOC(InputFileData%Pres_DispThick  , p%dstarall2   )
+        call MOVE_ALLOC(InputFileData%Suct_BLThick    , p%d99all1     )
+        call MOVE_ALLOC(InputFileData%Pres_BLThick    , p%d99all2     )
+        call MOVE_ALLOC(InputFileData%Suct_Cf         , p%Cfall1      )
+        call MOVE_ALLOC(InputFileData%Pres_Cf         , p%Cfall2      )
+        call MOVE_ALLOC(InputFileData%Suct_EdgeVelRat , p%EdgeVelRat1 )
+        call MOVE_ALLOC(InputFileData%Pres_EdgeVelRat , p%EdgeVelRat2 )
     endif
 
     ! If guidati is on, calculate the airfoil thickness at 1% and at 10% chord from input airfoil coordinates
