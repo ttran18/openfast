@@ -360,9 +360,18 @@ SUBROUTINE ReadBLTables( InputFile, AFI, InputFileData, UnEc, ErrStat, ErrMsg )
             CALL ReadVar(UnIn, FileName, TempRe, 'InputFileData%ReListBL','ReListBL', ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
             if (iAF == 1) then
                InputFileData%ReListBL(iRe) = TempRe  * 1.e+006
+               
+               if (iRe > 1) then
+                  if (InputFileData%ReListBL(iRe) <= InputFileData%ReListBL(iRe-1) ) then
+                     call SetErrStat(ErrID_Fatal,'All aeroacoustics BL tables must have Reynolds Numbers entered in increasing order.',ErrStat, ErrMsg, RoutineName)
+                     call cleanup()
+                     return
+                  end if
+               end if
+               
             else
                if ( nRe > 1 .AND. .NOT. EqualRealNos(InputFileData%ReListBL(iRe), TempRe * 1.e+006 ) ) then
-                  call SetErrStat(ErrID_Fatal,'All aeroacoustics airfoil BL tables must have the same Reynolds Numbers.',ErrStat, ErrMsg, RoutineName)
+                  call SetErrStat(ErrID_Fatal,'All aeroacoustics BL tables must have the same Reynolds Numbers.',ErrStat, ErrMsg, RoutineName)
                   call cleanup()
                   return
                end if
@@ -376,9 +385,19 @@ SUBROUTINE ReadBLTables( InputFile, AFI, InputFileData, UnEc, ErrStat, ErrMsg )
                
                 if (iAF == 1 .AND. iRe == 1) then
                    InputFileData%AoAListBL(iAoA) = Buffer( 1) ! AoA
+                   
+                  if (iAoA > 1) then
+
+                     if (InputFileData%AoAListBL(iAoA) <= InputFileData%AoAListBL(iAoA-1) ) then
+                        call SetErrStat(ErrID_Fatal,'All aeroacoustics BL tables angles of attack must be entered in increasing order.',ErrStat, ErrMsg, RoutineName)
+                        call cleanup()
+                        return
+                     end if
+                  end if
+
                 else
                    if ( .NOT. EqualRealNos(InputFileData%AoAListBL(iAoA), Buffer( 1) ) ) then
-                      call SetErrStat(ErrID_Fatal,'All aeroacoustics airfoil BL tables must have the angles of attack.',ErrStat, ErrMsg, RoutineName)
+                      call SetErrStat(ErrID_Fatal,'All aeroacoustics BL tables must have the same angles of attack.',ErrStat, ErrMsg, RoutineName)
                       call cleanup()
                       return
                    end if
