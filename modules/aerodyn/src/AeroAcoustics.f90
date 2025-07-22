@@ -22,6 +22,13 @@
 ! References:
 !  [1] Brooks, T. F.; Pope, D. S. & Marcolini, M. A., Airfoil self-noise and prediction, 
 !      NASA, NASA, 1989. https://ntrs.nasa.gov/search.jsp?R=19890016302
+! NOTE: This paper is also known as "BPM Airfoil Self-noise and Prediction paper" in the code documentation.
+! NOTE: curve fit equations in the Brooks, Pope, and Marcolini paper use AoA in **degrees** (not radians).
+   
+!  [2] Moriarty, Guidati, Migliore, Recent Improvement of a Semi-Empirical Aeroacoustic 
+!      Prediction Code for Wind Turbines, 2003, NREL/TP-500-34478 (https://docs.nrel.gov/docs/fy04osti/34478.pdf)
+!  [3] Lowson, M.V.; Assessment and Prediction of Wind Turbine Noise, Volumes 13-284 of ETSU W. 1993. https://books.google.com/books?id=IgVKGwAACAAJ
+
 module AeroAcoustics
     
    use NWTC_Library
@@ -819,6 +826,7 @@ SUBROUTINE CalcObserve(t,p,m,u,xd,errStat,errMsg)
             m%LE_Location(1,J,I) = RLEObservereal(1)
             m%LE_Location(2,J,I) = RLEObservereal(2)
             m%LE_Location(3,J,I) = RLEObservereal(3)
+            
             ! If the time step is set to generate AA outputs
             IF (t >= p%AAStart) THEN
                 IF ( mod(t + 1E-10,p%DT) .lt. 1E-6)  THEN
@@ -969,7 +977,9 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             ELSE
                 elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2    +    (p%BlSpn(J+1,I)-p%BlSpn(J,I))/2  
             ENDIF
-            AlphaNoise= u%AoANoise(J,I) * R2D_D 
+            AlphaNoise= u%AoANoise(J,I)
+            call MPi2Pi(AlphaNoise) ! make sure this is in an appropriate range [-pi,pi]
+            AlphaNoise= AlphaNoise * R2D_D ! convert to degrees since that is how this code is set up.
 
 
             !--------Read in Boundary Layer Data-------------------------!
@@ -1207,7 +1217,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 END SUBROUTINE CalcAeroAcousticsOutput
 !==================================================================================================================================!
 SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,StallVal,errStat,errMsg)
-    REAL(ReKi),                                 INTENT(IN   ) :: ALPSTAR        ! AOA
+    REAL(ReKi),                                 INTENT(IN   ) :: ALPSTAR        ! AOA, deg
     REAL(ReKi),                                 INTENT(IN   ) :: C              ! Chord Length
     REAL(ReKi),                                 INTENT(IN   ) :: U              ! Unoise FREESTREAM VELOCITY                METERS/SEC
     REAL(ReKi),                                 INTENT(IN   ) :: THETA          ! DIRECTIVITY ANGLE                  DEGREES
@@ -1444,9 +1454,13 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
     ! Determine peak strouhal numbers to be used for 'a' and 'b' curve calculations
     ST1    = .02 * M ** (-.6)                                                          ! Eq 32 from BPM Airfoil Self-noise and Prediction paper
      ! Eq 34 from BPM Airfoil Self-noise and Prediction paper
-    IF  (ALPSTAR .LE. 1.333)                          ST2 = ST1
-    IF ((ALPSTAR .GT. 1.333).AND.(ALPSTAR .LE. StallVal)) ST2 = ST1*10.**(.0054*(ALPSTAR-1.333)**2)
-    IF (ALPSTAR .GT. StallVal)                           ST2 = 4.72 * ST1
+    IF  (ALPSTAR .LE. 1.333) then
+       ST2 = ST1
+    elseif (ALPSTAR .LE. StallVal) then
+       ST2 = ST1*10.**(.0054*(ALPSTAR-1.333)**2)
+    else
+       ST2 = 4.72 * ST1
+    end if
     ST1PRIM = (ST1+ST2)/2.                                                             ! Eq 33 from BPM Airfoil Self-noise and Prediction paper
     CALL A0COMP(RC,A0)      ! compute -20 dB dropout   (returns A0)
     CALL A0COMP(3.0_ReKi*RC,A02)   ! compute -20 dB dropout for AoA > AoA_0   (returns A02)
@@ -1459,10 +1473,13 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
     ARA0  = (20. + AMINA0) / (AMINA0 - AMAXA0)
     ARA02 = (20. + AMINA02)/ (AMINA02- AMAXA02)
     ! Compute b0 to be used in 'b' curve calculations                                  ! Eq 44 from BPM Airfoil Self-noise and Prediction paper
-    IF (RC .LT. 9.52E+04) B0 = .30
-    IF ((RC .GE. 9.52E+04).AND.(RC .LT. 8.57E+05)) &
-        B0 = (-4.48E-13)*(RC-8.57E+05)**2 + .56
-    IF (RC .GE. 8.57E+05) B0 = .56
+    IF (RC .LT. 9.52E+04) then
+       B0 = .30
+    elseif (RC .LT. 8.57E+05) then
+       B0 = (-4.48E-13)*(RC-8.57E+05)**2 + .56
+    else
+       B0 = .56
+    end if
     ! Evaluate minimum and maximum 'b' curves at b0
     CALL BMIN(B0,BMINB0)
     CALL BMAX(B0,BMAXB0)
@@ -1471,21 +1488,33 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
 
     ! For each center frequency, compute an 'a' prediction for the pressure side
     STPEAK = ST1
-    IF (RC .LT. 2.47E+05)                        K1 = -4.31 * LOG10(RC) + 156.3        ! Begin Eq 47 from BPM Airfoil Self-noise and Prediction paper         
-    IF((RC .GE. 2.47E+05).AND.(RC .LE. 8.0E+05)) K1 = -9.0 * LOG10(RC) + 181.6
-    IF (RC .GT. 8.0E+05)                         K1 = 128.5                            ! end
-   IF (RDSTRP .LE. 5000.) DELK1 = -ALPSTAR*(5.29-1.43*LOG10(RDSTRP))                   ! Begin Eq 48 from BPM Airfoil Self-noise and Prediction paper
-    IF (RDSTRP .GT. 5000.) DELK1 = 0.0                                                 ! end      
-
+    
+    IF (RC .LT. 2.47E+05) then
+       K1 = -4.31 * LOG10(RC) + 156.3        ! Begin Eq 47 from BPM Airfoil Self-noise and Prediction paper         
+    elseif (RC .LE. 8.0E+05) then
+       K1 = -9.0 * LOG10(RC) + 181.6
+    else
+       K1 = 128.5
+    end if
+    
+    IF (RDSTRP .LE. 5000.) then
+       DELK1 = -ALPSTAR*(5.29-1.43*LOG10(RDSTRP))                   ! Begin Eq 48 from BPM Airfoil Self-noise and Prediction paper
+    else
+       DELK1 = 0.0
+    end if
+    
     GAMMA   = 27.094 * M +  3.31                                                       ! Begin Eq 49 from BPM Airfoil Self-noise and Prediction paper
     BETA    = 72.650 * M + 10.74
     GAMMA0  = 23.430 * M +  4.651
     BETA0   =-34.190 * M - 13.820                                                      ! end
 
-    IF (ALPSTAR .LE. (GAMMA0-GAMMA)) K2 = -1000.0                                      ! Begin Eq 49 from BPM Airfoil Self-noise and Prediction paper
-    IF ((ALPSTAR.GT.(GAMMA0-GAMMA)).AND.(ALPSTAR.LE.(GAMMA0+GAMMA))) &
-        K2=SQRT(BETA**2-(BETA/GAMMA)**2*(ALPSTAR-GAMMA0)**2)+BETA0
-    IF (ALPSTAR .GT. (GAMMA0+GAMMA)) K2 = -12.0
+    if (ALPSTAR .LE. (GAMMA0-GAMMA)) then
+       K2 = -1000.0                                      ! Begin Eq 49 from BPM Airfoil Self-noise and Prediction paper
+    else if (ALPSTAR.LE.(GAMMA0+GAMMA)) then
+       K2=SQRT(BETA**2-(BETA/GAMMA)**2*(ALPSTAR-GAMMA0)**2)+BETA0
+    else
+       K2 = -12.0
+    end if
     K2 = K2 + K1                                                                       ! end
     ! Check for 'a' computation for suction side
     XCHECK = GAMMA0
@@ -1611,7 +1640,7 @@ SUBROUTINE TIPNOIS(ALPHTIP,ALPRAT2,C,U ,THETA,PHI, R,p,SPLTIP, errStat, errMsg)
 END SUBROUTINE TipNois
 !==================================================================================================================================!
 SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errStat,errMsg)
-  REAL(ReKi),                                 INTENT(IN   ) :: AlphaNoise     ! AOA
+  REAL(ReKi),                                 INTENT(IN   ) :: AlphaNoise     ! AOA, deg
   REAL(ReKi),                                 INTENT(IN   ) :: Chord          ! Chord Length
   REAL(ReKi),                                 INTENT(IN   ) :: U              !
   REAL(ReKi),                                 INTENT(IN   ) :: THETA          !
@@ -1646,7 +1675,7 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
   REAL(ReKi)                   :: khat                                      ! nafnoise 
 !  REAL(ReKi)                   :: Kh                                        ! nafnoise 
   REAL(ReKi)                   :: ke                                        ! nafnoise 
-  REAL(ReKi)                   :: alpstar                                   ! nafnoise 
+  REAL(ReKi)                   :: alpstar                                   ! AoA in radians
 !  REAL(ReKi)                   :: mu                                        ! nafnoise 
   REAL(ReKi)                   :: tinooisess                                ! nafnoise 
   ! REAL(ReKi)                   :: L_Gammas                                  ! nafnoise 
@@ -1670,23 +1699,25 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
    !Ums = (tinooisess*8)**2
    CALL DIRECTL(Mach,THETA,PHI,DBARL,errStat2,errMsg2) ! assume that noise is low-freq in nature because turbulence length scale is large
    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
+   
    CALL DIRECTH_LE(Mach,THETA,PHI,DBARH,errStat2,errMsg2) ! Directivity for the leading edge at high frequencies
    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
+   
    IF (DBARH <= 0) THEN
       SPLti = 0.
       RETURN
    ENDIF
     
    ! In the following lines, bibliography will be referenced as:  a) Moriarty, Guidati, Migliore, Recent Improvement of a Semi-Empirical Aeroacoustic 
-   ! Prediction Code for Wind Turbines
-   ! ref b) Lowson, Assessment and Prediction of Wind Turbine Noise
+   ! Prediction Code for Wind Turbines (https://docs.nrel.gov/docs/fy04osti/34478.pdf)
+   ! ref b) Lowson, Assessment and Prediction of Wind Turbine Noise ()
    
    !*********************************************** Model 1:
    !!! Nafnoise source code version see below 
    Frequency_cutoff = 10*U/PI/Chord
    Ke = 3.0/(4.0*p%Lturb) 
    Beta2 = 1-Mach*Mach
-   ALPSTAR = AlphaNoise*PI/180.
+   ALPSTAR = AlphaNoise*D2R ! note that these references use AoA in radians, NOT degrees
 
    DO I=1,size(p%FreqList)
       IF (p%FreqList(I) <= Frequency_cutoff) THEN
@@ -1695,31 +1726,31 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
          Directivity = DBARH 
       ENDIF
 
-      WaveNumber = 2.0*PI*p%FreqList(I)/U
+      WaveNumber = TwoPi*p%FreqList(I)/U
       Kbar = WaveNumber*Chord/2.0
       Khat = WaveNumber/Ke
       ! mu = Mach*WaveNumber*Chord/2.0/Beta2
 
       SPLhigh = 10.*LOG10(p%AirDens*p%AirDens*p%SpdSound**4*p%Lturb*(d/2.)/ &
                (RObs*RObs)*(Mach**5)*tinooisess*tinooisess*(Khat**3)* &
-               (1+Khat**2)**(-7./3.)*Directivity) + 78.4   ! ref a)
+               (1+Khat**2)**(-7./3.)*Directivity) + 78.4   ! ref a; [2] )
    !!!   SPLhigh = 10.*LOG10(p%Lturb*(d/2.)/ &
    !!!                  (RObs*RObs)*(Mach**5)*tinooisess*tinooisess*(WaveNumber**3) &
    !!!                  *(1+WaveNumber**2)**(-7./3.)*Directivity) + 181.3  
    
-      SPLhigh = SPLhigh + 10.*LOG10(1+ 9.0*ALPSTAR*ALPSTAR)  ! Component due to angles of attack, ref a)   
+      SPLhigh = SPLhigh + 10.*LOG10(1+ 9.0*ALPSTAR*ALPSTAR)  ! Component due to angles of attack, ref a [2])   
 
-      Sears = 1/(2.*PI*Kbar/Beta2+1/(1+2.4*Kbar/Beta2))      ! ref a)
+      Sears = 1/(2.*PI*Kbar/Beta2+1/(1+2.4*Kbar/Beta2))      ! ref a [2])
 
-   !!!   Sears = 1/(2.*PI*WaveNumber/Beta2+1/(1+2.4*WaveNumber/Beta2))  ! ref b) 
+   !!!   Sears = 1/(2.*PI*WaveNumber/Beta2+1/(1+2.4*WaveNumber/Beta2))  ! ref b [3]) 
    
       LFC = 10*Sears*Mach*Kbar*Kbar/Beta2  ! ref a)
-   !!!   LFC = 10*Sears*Mach*WaveNumber*WaveNumber/Beta2  ! ref b)
+   !!!   LFC = 10*Sears*Mach*WaveNumber*WaveNumber/Beta2  ! ref b [3])
    
-   !!!   IF (mu<(PI/4.0)) THEN                     ! ref b)
-   !!!      SPLti(I) = SPLhigh + 10.*ALOG10(LFC)   ! ref b)
-   !!!   ELSE                                      ! ref b)
-   !!!      SPLti(I) = SPLhigh                     ! ref b)
+   !!!   IF (mu<(PI/4.0)) THEN                     ! ref b [3])
+   !!!      SPLti(I) = SPLhigh + 10.*ALOG10(LFC)   ! ref b [3])
+   !!!   ELSE                                      ! ref b [3])
+   !!!      SPLti(I) = SPLhigh                     ! ref b [3])
    !!!ENDIF
       SPLti(I) = SPLhigh + 10.*LOG10(LFC/(1+LFC))
    
@@ -1854,7 +1885,7 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
 END SUBROUTINE InflowNoise
 !====================================================================================================
 SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,SPLBLUNT,StallVal,errStat,errMsg)
-  REAL(ReKi),                             INTENT(IN   )  :: ALPSTAR        ! AOA
+  REAL(ReKi),                             INTENT(IN   )  :: ALPSTAR        ! AOA, deg
   REAL(ReKi),                             INTENT(IN   )  :: C              ! Chord Length
   REAL(ReKi),                             INTENT(IN   )  :: U              ! Unoise
   REAL(ReKi),                             INTENT(IN   )  :: THETA          ! DIRECTIVITY ANGLE                     ---
@@ -1943,11 +1974,11 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
         STPPP    = p%FreqList(I) * H / U
         ETA      = LOG10(STPPP/STPEAK)
         HDSTARL = HDSTAR
-        CALL G5COMP(HDSTARL,ETA,G514,errStat2,errMsg2 )                          ! compute G5 for Phi=14deg
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return 
+        CALL G5COMP(HDSTARL,ETA,G514 )                          ! compute G5 for Phi=14deg
+        
         HDSTARP = 6.724 * HDSTAR **2-4.019*HDSTAR+1.107                         ! eq 82 from BPM Airfoil Self-noise and Prediction paper
-        CALL G5COMP(HDSTARP,ETA,G50,errStat2,errMsg2 )                           ! recompute G5 for Phi=0deg
-        CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
+        CALL G5COMP(HDSTARP,ETA,G50)                           ! recompute G5 for Phi=0deg
+        
         G5(I) = G50 + .0714 * PSI * (G514-G50)                                   ! interpolate G5 from G50 and G514
         IF (G5(I) .GT. 0.) G5(I) = 0.
         G5Sum = 10**(G5(I)/10)+G5Sum     ! to be subtracted
@@ -1955,41 +1986,55 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
     end do
 END SUBROUTINE Blunt
 !====================================================================================================
-SUBROUTINE G5COMP(HDSTAR,ETA,G5,errStat,errMsg)
+SUBROUTINE G5COMP(HDSTAR,ETA,G5)
     REAL(ReKi),          INTENT(IN   )  :: HDSTAR        !<
     REAL(ReKi),          INTENT(IN   )  :: ETA           !< 
     REAL(ReKi),          INTENT(  OUT)  :: G5            !< 
-    INTEGER(IntKi),      INTENT(  OUT)  :: errStat       !< Error status of the operation
-    CHARACTER(*),        INTENT(  OUT)  :: errMsg        !< Error message if ErrStat /= ErrID_None
     ! Local variables
-!    INTEGER(intKi)                                                 :: ErrStat2           ! temporary Error status
-!    CHARACTER(ErrMsgLen)                                           :: ErrMsg2            ! temporary Error message
-    CHARACTER(*), parameter                                        :: RoutineName = 'BLUNT'
+    CHARACTER(*), parameter                                        :: RoutineName = 'G5COMP'
     real(ReKi)                                    :: K 
     real(ReKi)                                    :: M
     real(ReKi)                                    :: MU
-    real(ReKi)                                    :: ETALIMIT
     real(ReKi)                                    :: ETA0
-    ErrStat = ErrID_None
-    ErrMsg  = ""
-    IF ( HDSTAR .LT. .25)                          MU = .1211                    ! begin eq 78 from BPM Airfoil Self-noise and Prediction paper
-    IF ((HDSTAR .GT. .25).AND.(HDSTAR .LE. .62))   MU =-.2175*HDSTAR + .1755
-    IF ((HDSTAR .GT. .62).AND.(HDSTAR .LT. 1.15))  MU =-.0308*HDSTAR + .0596
-    IF ( HDSTAR .GE. 1.15)                         MU = .0242                    ! end
-    IF ( HDSTAR .LE. .02 )                         M = 0.0                       ! begin eq 79 from BPM Airfoil Self-noise and Prediction paper
-    IF ((HDSTAR .GE. .02 ).AND.(HDSTAR .LT. .5))   M = 68.724*HDSTAR - 1.35   
-    IF ((HDSTAR .GT. .5  ).AND.(HDSTAR .LE. .62))  M = 308.475*HDSTAR - 121.23
-    IF ((HDSTAR .GT. .62 ).AND.(HDSTAR .LE. 1.15)) M = 224.811*HDSTAR - 69.354
-    IF ((HDSTAR .GT. 1.15).AND.(HDSTAR .LT. 1.2))  M = 1583.28*HDSTAR - 1631.592
-    IF ( HDSTAR .GT. 1.2 )                         M = 268.344
-    IF ( M      .LT. 0.0 )                         M = 0.0                       ! end
+    
+    IF ( HDSTAR .LT. .25) then
+       MU = .1211                    ! begin eq 78 from BPM Airfoil Self-noise and Prediction paper
+    elseif (HDSTAR .LE. .62) then
+       MU =-.2175*HDSTAR + .1755
+    elseif (HDSTAR .LT. 1.15) then
+       MU =-.0308*HDSTAR + .0596
+    else
+       MU = .0242
+    end if
+    
+    IF ( HDSTAR .LE. .02 ) then
+       M = 0.0                       ! begin eq 79 from BPM Airfoil Self-noise and Prediction paper
+    elseif (HDSTAR .LT. 0.5) then
+       M = 68.724*HDSTAR - 1.35
+    elseif (HDSTAR .LE. .62) then
+       M = 308.475*HDSTAR - 121.23
+    elseif (HDSTAR .LE. 1.15) then
+       M = 224.811*HDSTAR - 69.354
+    elseif (HDSTAR .LT. 1.2) then
+       M = 1583.28*HDSTAR - 1631.592
+    else
+       M = 268.344
+    end if
+    M = MAX(M, 0.0_ReKi) !bjj: not sure this is necessary... previous iterations of this statement missed some of the cases so may have had uninitialized values; otherwise, it's not possible to get M<0
+    
     ETA0 = -SQRT((M*M*MU**4)/(6.25+M*M*MU*MU))                                   ! eq 80 from BPM Airfoil Self-noise and Prediction paper
-    K    = 2.5*SQRT(1.-(ETA0/MU)**2)-2.5-M*ETA0                                  ! eq 81 from BPM Airfoil Self-noise and Prediction paper
-    ETALIMIT = 0.03615995                                                        ! one of the bounds given in eq 76 of BPM Airfoil Self-noise and Prediction paper
-    IF (ETA .LE. ETA0)                      G5 = M * ETA + K                     ! begin eq 76 from BPM Airfoil Self-noise and Prediction paper
-    IF((ETA.GT.ETA0).AND.(ETA .LE. 0.))     G5 = 2.5*SQRT(1.-(ETA/MU)**2)-2.5
-    IF((ETA.GT.0.  ).AND.(ETA.LE.ETALIMIT)) G5 = SQRT(1.5625-1194.99*ETA**2)-1.25
-    IF (ETA.GT.ETALIMIT)                    G5 = -155.543 * ETA + 4.375          ! end
+    
+    IF (ETA .LE. ETA0) then
+       K  = 2.5*SQRT(1.-(ETA0/MU)**2)-2.5-M*ETA0                                 ! eq 81 from BPM Airfoil Self-noise and Prediction paper
+       G5 = M * ETA + K                     ! begin eq 76 from BPM Airfoil Self-noise and Prediction paper
+    elseif (ETA .LE. 0.) then
+       G5 = 2.5*SQRT(1.-(ETA/MU)**2)-2.5
+    elseif (ETA .LE. 0.03615995) then
+       G5 = SQRT(1.5625-1194.99*ETA**2)-1.25
+    else
+       G5 = -155.543 * ETA + 4.375
+    end if
+    
 END SUBROUTINE G5Comp
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the a-curve for the minimum allowed reynolds number.
@@ -1998,9 +2043,13 @@ SUBROUTINE AMIN(A,AMINA)
     REAL(ReKi),                             INTENT(OUT  )  :: AMINA
     REAL(ReKi) :: X1
     X1 = ABS(A)
-    IF (X1 .LE. .204) AMINA=SQRT(67.552-886.788*X1**2)-8.219
-    IF((X1 .GT. .204).AND.(X1 .LE. .244))AMINA=-32.665*X1+3.981
-    IF (X1 .GT. .244)AMINA=-142.795*X1**3+103.656*X1**2-57.757*X1+6.006
+    IF (X1 .LE. .204) then
+       AMINA=SQRT(67.552-886.788*X1**2)-8.219
+    elseif (X1 .LE. .244) then
+       AMINA=-32.665*X1+3.981
+    else
+       AMINA=-142.795*X1**3+103.656*X1**2-57.757*X1+6.006
+    end if
 END SUBROUTINE AMIN
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the a-curve for the maximum allowed reynolds number.
@@ -2009,9 +2058,13 @@ SUBROUTINE AMAX(A,AMAXA)
     REAL(ReKi),                             INTENT(OUT  )  :: AMAXA
     REAL(ReKi) :: X1
     X1 = ABS(A)
-    IF (X1 .LE. .13)AMAXA=SQRT(67.552-886.788*X1**2)-8.219
-    IF((X1 .GT. .13).AND.(X1 .LE. .321))AMAXA=-15.901*X1+1.098
-    IF (X1 .GT. .321)AMAXA=-4.669*X1**3+3.491*X1**2-16.699*X1+1.149
+    IF (X1 .LE. .13) then
+       AMAXA=SQRT(67.552-886.788*X1**2)-8.219
+    elseif (X1 .LE. .321) then
+       AMAXA=-15.901*X1+1.098
+    else
+       AMAXA=-4.669*X1**3+3.491*X1**2-16.699*X1+1.149
+    end if
 END SUBROUTINE AMAX
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the b-curve for the minimum allowed reynolds number.
@@ -2020,9 +2073,13 @@ SUBROUTINE BMIN(B,BMINB)
     REAL(ReKi),                             INTENT(OUT  )  :: BMINB
     REAL(ReKi) :: X1
     X1 = ABS(B)
-    IF (X1 .LE. .13)BMINB=SQRT(16.888-886.788*X1**2)-4.109
-    IF((X1 .GT. .13).AND.(X1 .LE. .145))BMINB=-83.607*X1+8.138
-    IF (X1.GT..145)BMINB=-817.81*X1**3+355.21*X1**2-135.024*X1+10.619
+    IF (X1 .LE. .13) then
+       BMINB=SQRT(16.888-886.788*X1**2)-4.109
+    elseif (X1 .LE. .145) then
+       BMINB=-83.607*X1+8.138
+    else
+       BMINB=-817.81*X1**3+355.21*X1**2-135.024*X1+10.619
+    end if
 END SUBROUTINE BMin
 !====================================================================================================
 !> Define the curve fit corresponding to the b-curve for the maximum allowed reynolds number.
@@ -2031,19 +2088,26 @@ SUBROUTINE BMAX(B,BMAXB)
     REAL(ReKi),   INTENT(OUT  )  :: BMAXB
     REAL(ReKi) :: X1
     X1 = ABS(B)
-    IF (X1 .LE. .1) BMAXB=SQRT(16.888-886.788*X1**2)-4.109
-    IF((X1 .GT. .1).AND.(X1 .LE. .187))BMAXB=-31.313*X1+1.854
-    IF (X1.GT..187)BMAXB=-80.541*X1**3+44.174*X1**2-39.381*X1+2.344
+    IF (X1 .LE. .1) then
+       BMAXB=SQRT(16.888-886.788*X1**2)-4.109
+    else if (X1 .LE. .187) then
+       BMAXB=-31.313*X1+1.854
+    else
+       BMAXB=-80.541*X1**3+44.174*X1**2-39.381*X1+2.344
+    end if
 END SUBROUTINE BMax
 !====================================================================================================
 !> Determine where the a-curve takes on a value of -20 db.
 SUBROUTINE A0COMP(RC,A0)
     REAL(ReKi),   INTENT(IN   )  :: RC
     REAL(ReKi),   INTENT(OUT  )  :: A0
-    IF (RC .LT. 9.52E+04) A0 = .57
-    IF ((RC .GE. 9.52E+04).AND.(RC .LT. 8.57E+05)) &
-        A0 = (-9.57E-13)*(RC-8.57E+05)**2 + 1.13
-    IF (RC .GE. 8.57E+05) A0 = 1.13
+    IF (RC .LT. 9.52E+04) then
+       A0 = .57
+    elseif (RC .LT. 8.57E+05) then
+       A0 = (-9.57E-13)*(RC-8.57E+05)**2 + 1.13
+    else
+       A0 = 1.13
+    end if
 END SUBROUTINE A0COMP
 !====================================================================================================
 !> Compute zero angle of attack boundary layer thickness (meters) and reynolds number
@@ -2272,6 +2336,10 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
     freq    = p%FreqList
     ErrStat = ErrID_None
     ErrMsgn = ""
+    
+    SPLS = 0.0_ReKi ! initialize in case Cfall(1) <= 0
+    SPLP = 0.0_ReKi ! initialize in case Cfall(2) <= 0
+    
     ! Body of TNO 
     band_ratio = 2.**(1./3.)
 
