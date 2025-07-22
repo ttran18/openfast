@@ -556,8 +556,6 @@ subroutine Init_MiscVars(m, p, u, y, errStat, errMsg)
     m%dstarVar     = 0.0_ReKi
     m%EdgeVelVar   = 0.0_ReKi
     m%LE_Location  = 0.0_ReKi
-    m%speccou      = 0
-    m%filesopen    = 0
 contains
     logical function Failed()
         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName) 
@@ -648,7 +646,6 @@ subroutine AA_UpdateStates( t, n, m, u, p,  xd,  errStat, errMsg )
    !   TEMPSTD     = sqrt(  (xd%VxSq/(n+1)) - (xd%MeanVxVyVz**2)   )
    !   xd%TIVx  = (TEMPSTD / xd%MeanVxVyVz ) ! check inflow noise input for multiplication with 100 or not
 
-   m%speccou= m%speccou+1
    IF(   (p%TICalcMeth.eq.2) ) THEN
        do i=1,p%NumBlades
            do j=1,p%NumBlNds
@@ -892,13 +889,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     REAL(ReKi)                    :: AlphaNoise                                 ! 
     REAL(ReKi)                    :: UNoise                                     ! 
     REAL(ReKi)                    :: elementspan                                ! 
-!    REAL(ReKi),DIMENSION(p%NumBlNds)       ::tempdel
-!    REAL(ReKi),DIMENSION(p%NrObsLoc,p%NumBlNds,p%numBlades)    ::OASPLTBLAll
-    REAL(ReKi),DIMENSION(p%NrObsLoc,p%NumBlNds,p%numBlades,size(p%FreqList))    ::ForMaxLoc
-    REAL(ReKi),DIMENSION(nNoiseMechanism,size(p%FreqList),p%NrObsLoc,p%NumBlNds,p%numBlades)    :: ForMaxLoc3
-!    REAL(ReKi),DIMENSION(size(p%FreqList),p%NrObsLoc,p%numBlades)               ::SPL_Out
-    REAL(ReKi),DIMENSION(p%NumBlNds,p%numBlades)    ::temp_dispthick
-    REAL(ReKi),DIMENSION(p%NumBlNds,p%numBlades)    ::temp_dispthickchord
 
     real(ReKi)                                                 ::  Ptotal
     real(ReKi)                                                 :: PtotalLBL    
@@ -916,11 +906,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     real(ReKi)                                                 :: PTip
     real(ReKi)                                                 :: PTI
     real(ReKi)                                                 :: PBLNT !,adforma
-!    REAL(ReKi),DIMENSION(2)                                    :: Cf ,d99, d_star
-!    TYPE(FFT_DataType)                                         :: FFT_Data             !< the instance of the FFT module we're using
-!    REAL(ReKi),DIMENSION(p%total_sample)                     :: spect_signal
-!    REAL(ReKi),DIMENSION(p%total_sample/2)                   :: spectra
-!    real(ReKi),ALLOCATABLE     ::  fft_freq(:)  
     integer(intKi)                                             :: ErrStat2
     character(ErrMsgLen)                                       :: ErrMsg2
     character(*), parameter                                    :: RoutineName = 'CalcAeroAcousticsOutput'
@@ -932,9 +917,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
    y%OASPL = 0.0_Reki
 
    y%DirectiviOutput = 0.0_Reki
-   ForMaxLoc=0.0_Reki
    y%SumSpecNoiseSep = 0.0_Reki
-   ForMaxLoc3=0.0_Reki
    m%SPLLBL=0.0_Reki
    m%SPLP=0.0_Reki
    m%SPLS=0.0_Reki
@@ -946,7 +929,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
 
     !------------------- initialize FFT  -------------------------!
-    !!!IF (m%speccou .eq. p%total_sample)THEN
     !!!CALL InitFFT ( p%total_sample, FFT_Data, ErrStat=ErrStat2 )
     !!! CALL SetErrStat(ErrStat2, 'Error in InitFFT', ErrStat, ErrMsg, 'CalcAeroAcousticsOutput' )
     !!!CALL AllocAry( fft_freq,  size(spect_signal)/2-1, 'fft_freq', ErrStat2, ErrMsg2 ) 
@@ -955,7 +937,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     !!!    fft_freq(liop)=p%fsample*liop ! fRequncy x axis
     !!!    fft_freq(liop)=fft_freq(liop)/size(spect_signal)
     !!!enddo
-    !!!ENDIF
 
 
     
@@ -965,7 +946,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
             !--------Calculate Spectrum for dissipation calculation-------------------------!
-            !IF (m%speccou .eq. p%total_sample)THEN
             !spect_signal=xd%VrelStore(  1:p%total_sample,J,I  )
             !        CALL ApplyFFT_f( spect_signal, FFT_Data, ErrStat2 )
             ! IF (ErrStat2 /= ErrID_None ) THEN
@@ -978,8 +958,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             !ENDDO
             !spectra(1)=spect_signal(1)*spect_signal(1)
             !spectra=spectra/(size(spectra)*2)
-            !          m%speccou=0
-            !ENDIF
 
             Unoise =  u%Vrel(J,I) 
             IF (abs(Unoise) < AA_u_min) then
@@ -998,10 +976,8 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
             IF (p%X_BLMethod .EQ. X_BLMethod_Tables) THEN
                 call BL_Param_Interp(p,m,Unoise,AlphaNoise,p%BlChord(J,I),p%BlAFID(J,I), errStat2, errMsg2)
                 CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
-                temp_dispthick(J,I) = m%d99Var(1)
-                m%d99Var            = m%d99Var*p%BlChord(J,I)
-                m%dstarVar          = m%dstarVar*p%BlChord(J,I)
-                temp_dispthickchord(J,I)=m%d99Var(1)
+                m%d99Var     = m%d99Var*p%BlChord(J,I)
+                m%dstarVar   = m%dstarVar*p%BlChord(J,I)
             ENDIF
 
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
@@ -1035,6 +1011,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                     ENDIF
                 ENDIF
+                
                 !--------Blunt Trailing Edge Noise----------------------------------------------!
                 IF ( p%IBLUNT .EQ. IBLUNT_BPM )   THEN                                          
                     CALL BLUNT(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
@@ -1042,12 +1019,14 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                     p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT,p%StallStart(J,I),errStat2,errMsg2 )
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
+                
                 !--------Tip Noise--------------------------------------------------------------!
                 IF (  (p%ITIP .EQ. ITIP_ON) .AND. (J .EQ. p%NumBlNds)  ) THEN 
                     CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
                         m%rTEtoObserve(K,J,I), p, m%SPLTIP,errStat2,errMsg2)
                     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
                 ENDIF
+                
                 !--------Inflow Turbulence Noise ------------------------------------------------!
                 ! important checks to be done inflow tubulence inputs
                 IF (p%IInflow /= IInflow_None) then
@@ -1264,11 +1243,14 @@ SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,
     real(ReKi)     :: E        ! STROUHAL NUMBER RATIO              ---
     real(ReKi)     :: SCALE    ! GEOMETRIC SCALING TERM
     integer(intKi) :: I        ! I A generic index for DO loops.
+    
     ErrStat = ErrID_None
     ErrMsg  = ""
+    
     !compute reynolds number and mach number
     M          = U  / p%SpdSound        ! MACH NUMBER
     RC         = U  * C/p%KinVisc       ! REYNOLDS NUMBER BASED ON  CHORD
+    
     ! compute boundary layer thicknesses
     IF (p%X_BLMethod .eq. X_BLMethod_Tables) THEN
         DELTAP = d99Var2
@@ -1278,6 +1260,7 @@ SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
     ENDIF
+    
     ! compute directivity function
     CALL DIRECTH_TE(M,THETA,PHI,DBARH,errStat2,errMsg2)
     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 

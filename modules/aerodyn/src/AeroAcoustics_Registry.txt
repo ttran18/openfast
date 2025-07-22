@@ -138,8 +138,8 @@ typedef     ^                   MiscVarType          ReKi                CfVar  
 typedef     ^                   MiscVarType          ReKi                d99Var                 {:}  -     -     "BL Output "     -
 typedef     ^                   MiscVarType          ReKi                dStarVar               {:}  -     -     "BL Output "     -
 typedef     ^                   MiscVarType          ReKi                EdgeVelVar                 {:}  -     -     "BL Output "     -
-typedef     ^                   MiscVarType          IntKi               speccou                -    -     -     "Secptrum counter every XX seconds new spectrum"     -
-typedef     ^                   MiscVarType          IntKi               filesopen                -    -     -     "check if file is open"     -
+typedef     ^                   MiscVarType          IntKi               LastIndex              {2}    -     -     "index for BL param interpolation"     -
+
 # ..... Parameters ................................................................................................................
 # Define parameters here:
 # Time step for integration of continuous states (if a fixed-step integrator is used) and update of discrete states:

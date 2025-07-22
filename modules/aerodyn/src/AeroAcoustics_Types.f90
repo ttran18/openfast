@@ -165,8 +165,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: d99Var      !< BL Output  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: dStarVar      !< BL Output  [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: EdgeVelVar      !< BL Output  [-]
-    INTEGER(IntKi)  :: speccou = 0_IntKi      !< Secptrum counter every XX seconds new spectrum [-]
-    INTEGER(IntKi)  :: filesopen = 0_IntKi      !< check if file is open [-]
+    INTEGER(IntKi) , DIMENSION(1:2)  :: LastIndex = 0_IntKi      !< index for BL param interpolation [-]
   END TYPE AA_MiscVarType
 ! =======================
 ! =========  AA_ParameterType  =======
@@ -1663,8 +1662,7 @@ subroutine AA_CopyMisc(SrcMiscData, DstMiscData, CtrlCode, ErrStat, ErrMsg)
       end if
       DstMiscData%EdgeVelVar = SrcMiscData%EdgeVelVar
    end if
-   DstMiscData%speccou = SrcMiscData%speccou
-   DstMiscData%filesopen = SrcMiscData%filesopen
+   DstMiscData%LastIndex = SrcMiscData%LastIndex
 end subroutine
 
 subroutine AA_DestroyMisc(MiscData, ErrStat, ErrMsg)
@@ -1766,8 +1764,7 @@ subroutine AA_PackMisc(RF, Indata)
    call RegPackAlloc(RF, InData%d99Var)
    call RegPackAlloc(RF, InData%dStarVar)
    call RegPackAlloc(RF, InData%EdgeVelVar)
-   call RegPack(RF, InData%speccou)
-   call RegPack(RF, InData%filesopen)
+   call RegPack(RF, InData%LastIndex)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1801,8 +1798,7 @@ subroutine AA_UnPackMisc(RF, OutData)
    call RegUnpackAlloc(RF, OutData%d99Var); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%dStarVar); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%EdgeVelVar); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%speccou); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%filesopen); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%LastIndex); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine AA_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
