@@ -1462,13 +1462,13 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
        ST2 = 4.72 * ST1
     end if
     ST1PRIM = (ST1+ST2)/2.                                                             ! Eq 33 from BPM Airfoil Self-noise and Prediction paper
-    CALL A0COMP(RC,A0)      ! compute -20 dB dropout   (returns A0)
-    CALL A0COMP(3.0_ReKi*RC,A02)   ! compute -20 dB dropout for AoA > AoA_0   (returns A02)
+    A0 = A0COMP(RC)      ! compute -20 dB dropout   (returns A0)
+    A02 = A0COMP(3.0_ReKi*RC)   ! compute -20 dB dropout for AoA > AoA_0   (returns A02)
     ! Evaluate minimum and maximum 'a' curves at a0
-    CALL AMIN(A0,AMINA0)
-    CALL AMAX(A0,AMAXA0)
-    CALL AMIN(A02,AMINA02)
-    CALL AMAX(A02,AMAXA02)
+    AMINA0 = AMIN(A0)
+    AMAXA0 = AMAX(A0)
+    AMINA02 = AMIN(A02)
+    AMAXA02 = AMAX(A02)
     ! Compute 'a' max/min ratio                                                        ! Eq 39 from BPM Airfoil Self-noise and Prediction paper   
     ARA0  = (20. + AMINA0) / (AMINA0 - AMAXA0)
     ARA02 = (20. + AMINA02)/ (AMINA02- AMAXA02)
@@ -1481,8 +1481,8 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
        B0 = .56
     end if
     ! Evaluate minimum and maximum 'b' curves at b0
-    CALL BMIN(B0,BMINB0)
-    CALL BMAX(B0,BMAXB0)
+    BMINB0 = BMIN(B0)
+    BMAXB0 = BMAX(B0)
     ! Compute 'b' max/min ratio
     BRB0  = (20. + BMINB0) / (BMINB0 - BMAXB0)
 
@@ -1526,8 +1526,8 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
     DO  I=1,size(p%FreqList)
         STP= p%FreqList(I) * DSTRP / U                                     ! Eq 31 from BPM Airfoil Self-noise and Prediction paper   
         A      = LOG10( STP / STPEAK )                                     ! Eq 37 from BPM Airfoil Self-noise and Prediction paper
-        CALL AMIN(A,AMINA)
-        CALL AMAX(A,AMAXA)
+        AMINA = AMIN(A)
+        AMAXA = AMAX(A)
         AA     = AMINA + ARA0 * (AMAXA - AMINA)                            ! Eq 40 from BPM Airfoil Self-noise and Prediction paper
 
         SPLP(I)=AA+K1-3.+10.*LOG10(DSTRP*M**5*DBARH*L/R**2)+DELK1        ! Eq 25 from BPM Airfoil Self-noise and Prediction paper
@@ -1535,15 +1535,15 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
 
         IF (.NOT. SWITCH) THEN
             A      = LOG10( STS / ST1PRIM )
-            CALL AMIN(A,AMINA)
-            CALL AMAX(A,AMAXA)
+            AMINA = AMIN(A)
+            AMAXA = AMAX(A)
             AA = AMINA + ARA0 * (AMAXA - AMINA)
             SPLS(I) = AA+K1-3.+10.*LOG10(DSTRS*M**5*DBARH* L/R**2)       ! Eq 26 from BPM Airfoil Self-noise and Prediction paper
             !  'B' CURVE COMPUTATION
             !        B = ABS(LOG10(STS / ST2))
             B = LOG10(STS / ST2) ! abs not needed absolute taken in the AMAX,AMIN   ! Eq 43 from BPM Airfoil Self-noise and Prediction paper
-            CALL BMIN(B,BMINB)
-            CALL BMAX(B,BMAXB)
+            BMINB = BMIN(B)
+            BMAXB = BMAX(B)
             BB = BMINB + BRB0 * (BMAXB-BMINB)                              ! Eq 46 from BPM Airfoil Self-noise and Prediction paper
             SPLALPH(I)=BB+K2+10.*LOG10(DSTRS*M**5*DBARH*L/R**2)          ! Eq 27 from BPM Airfoil Self-noise and Prediction paper
         ELSE
@@ -1553,8 +1553,8 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
             SPLP(I) = 10.*LOG10(DSTRP*M**5*DBARL*L/R**2) ! this is correct
             !        B = ABS(LOG10(STS / ST2))
             B = LOG10(STS / ST2) ! abs not needed absolute taken in the AMAX,AMIN
-            CALL AMIN(B,AMINB)
-            CALL AMAX(B,AMAXB)
+            AMINB = AMIN(B)
+            AMAXB = AMAX(B)
             BB = AMINB + ARA02 * (AMAXB-AMINB)
             SPLALPH(I)=BB+K2+10.*LOG10(DSTRS*M**5*DBARL*L/R**2)            
         ENDIF
@@ -1920,7 +1920,6 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
   real(ReKi)                             :: ATERM    ! USED TO COMPUTE PEAK STROUHAL NO.    ---
   real(ReKi)                             :: STPEAK   ! PEAK STROUHAL NUMBER                  ---
   real(ReKi)                             :: ETA      ! RATIO OF STROUHAL NUMBERS             ---
-  real(ReKi)                             :: HDSTARL  ! MINIMUM ALLOWED VALUE OF HDSTAR       ---
   real(ReKi)                             :: G514     ! G5 EVALUATED AT PSI=14.0              DB
   real(ReKi)                             :: HDSTARP  ! MODIFIED VALUE OF HDSTAR              ---
   real(ReKi)                             :: G50      ! G5 EVALUATED AT PSI=0.0               DB
@@ -1973,11 +1972,10 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
     DO I=1,SIZE(p%FreqList)
         STPPP    = p%FreqList(I) * H / U
         ETA      = LOG10(STPPP/STPEAK)
-        HDSTARL = HDSTAR
-        CALL G5COMP(HDSTARL,ETA,G514 )                          ! compute G5 for Phi=14deg
+        G514 = G5COMP(HDSTAR,ETA)                          ! compute G5 for Phi=14deg
         
         HDSTARP = 6.724 * HDSTAR **2-4.019*HDSTAR+1.107                         ! eq 82 from BPM Airfoil Self-noise and Prediction paper
-        CALL G5COMP(HDSTARP,ETA,G50)                           ! recompute G5 for Phi=0deg
+        G50 = G5COMP(HDSTARP,ETA)                           ! recompute G5 for Phi=0deg
         
         G5(I) = G50 + .0714 * PSI * (G514-G50)                                   ! interpolate G5 from G50 and G514
         IF (G5(I) .GT. 0.) G5(I) = 0.
@@ -1986,12 +1984,11 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
     end do
 END SUBROUTINE Blunt
 !====================================================================================================
-SUBROUTINE G5COMP(HDSTAR,ETA,G5)
+REAL(ReKi) FUNCTION G5COMP(HDSTAR,ETA) result(G5)
     REAL(ReKi),          INTENT(IN   )  :: HDSTAR        !<
     REAL(ReKi),          INTENT(IN   )  :: ETA           !< 
-    REAL(ReKi),          INTENT(  OUT)  :: G5            !< 
+
     ! Local variables
-    CHARACTER(*), parameter                                        :: RoutineName = 'G5COMP'
     real(ReKi)                                    :: K 
     real(ReKi)                                    :: M
     real(ReKi)                                    :: MU
@@ -2035,13 +2032,13 @@ SUBROUTINE G5COMP(HDSTAR,ETA,G5)
        G5 = -155.543 * ETA + 4.375
     end if
     
-END SUBROUTINE G5Comp
+END FUNCTION G5Comp
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the a-curve for the minimum allowed reynolds number.
-SUBROUTINE AMIN(A,AMINA)
+REAL(ReKi) FUNCTION AMIN(A) result(AMINA)
     REAL(ReKi),                             INTENT(IN   )  :: A
-    REAL(ReKi),                             INTENT(OUT  )  :: AMINA
     REAL(ReKi) :: X1
+    
     X1 = ABS(A)
     IF (X1 .LE. .204) then
        AMINA=SQRT(67.552-886.788*X1**2)-8.219
@@ -2050,13 +2047,14 @@ SUBROUTINE AMIN(A,AMINA)
     else
        AMINA=-142.795*X1**3+103.656*X1**2-57.757*X1+6.006
     end if
-END SUBROUTINE AMIN
+    
+END FUNCTION AMIN
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the a-curve for the maximum allowed reynolds number.
-SUBROUTINE AMAX(A,AMAXA)
+REAL(ReKi) FUNCTION AMAX(A) result(AMAXA)
     REAL(ReKi),                             INTENT(IN   )  :: A
-    REAL(ReKi),                             INTENT(OUT  )  :: AMAXA
     REAL(ReKi) :: X1
+
     X1 = ABS(A)
     IF (X1 .LE. .13) then
        AMAXA=SQRT(67.552-886.788*X1**2)-8.219
@@ -2065,13 +2063,14 @@ SUBROUTINE AMAX(A,AMAXA)
     else
        AMAXA=-4.669*X1**3+3.491*X1**2-16.699*X1+1.149
     end if
-END SUBROUTINE AMAX
+    
+END FUNCTION AMAX
 !====================================================================================================
 !> This subroutine defines the curve fit corresponding to the b-curve for the minimum allowed reynolds number.
-SUBROUTINE BMIN(B,BMINB)
+REAL(ReKi) FUNCTION BMIN(B) result(BMINB)
     REAL(ReKi),                             INTENT(IN   )  :: B
-    REAL(ReKi),                             INTENT(OUT  )  :: BMINB
     REAL(ReKi) :: X1
+
     X1 = ABS(B)
     IF (X1 .LE. .13) then
        BMINB=SQRT(16.888-886.788*X1**2)-4.109
@@ -2080,12 +2079,12 @@ SUBROUTINE BMIN(B,BMINB)
     else
        BMINB=-817.81*X1**3+355.21*X1**2-135.024*X1+10.619
     end if
-END SUBROUTINE BMin
+    
+END FUNCTION BMin
 !====================================================================================================
 !> Define the curve fit corresponding to the b-curve for the maximum allowed reynolds number.
-SUBROUTINE BMAX(B,BMAXB)
+REAL(ReKi) FUNCTION BMAX(B) result(BMAXB)
     REAL(ReKi),   INTENT(IN   )  :: B
-    REAL(ReKi),   INTENT(OUT  )  :: BMAXB
     REAL(ReKi) :: X1
     X1 = ABS(B)
     IF (X1 .LE. .1) then
@@ -2095,12 +2094,11 @@ SUBROUTINE BMAX(B,BMAXB)
     else
        BMAXB=-80.541*X1**3+44.174*X1**2-39.381*X1+2.344
     end if
-END SUBROUTINE BMax
+END FUNCTION BMax
 !====================================================================================================
 !> Determine where the a-curve takes on a value of -20 db.
-SUBROUTINE A0COMP(RC,A0)
+REAL(ReKi) FUNCTION A0COMP(RC) result(A0)
     REAL(ReKi),   INTENT(IN   )  :: RC
-    REAL(ReKi),   INTENT(OUT  )  :: A0
     IF (RC .LT. 9.52E+04) then
        A0 = .57
     elseif (RC .LT. 8.57E+05) then
@@ -2108,7 +2106,7 @@ SUBROUTINE A0COMP(RC,A0)
     else
        A0 = 1.13
     end if
-END SUBROUTINE A0COMP
+END FUNCTION A0COMP
 !====================================================================================================
 !> Compute zero angle of attack boundary layer thickness (meters) and reynolds number
 SUBROUTINE THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat,errMsg)
