@@ -1269,34 +1269,57 @@ SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,
         SPLLAM = 0.
         RETURN
     ENDIF
+    
     ! compute reference strouhal number                                 ! Eq 55 from BPM Airfoil Self-noise and Prediction paper
-    IF (RC .LE. 1.3E+05) ST1PRIM = .18
-    IF((RC .GT. 1.3E+05).AND.(RC.LE.4.0E+05))ST1PRIM=.001756*RC**.3931
-    IF (RC .GT. 4.0E+05) ST1PRIM = .28
+    if (RC .LE. 1.3E+05) then
+       ST1PRIM = .18
+    elseif (RC.LE.4.0E+05) then
+       ST1PRIM=.001756*RC**.3931
+    else
+       ST1PRIM = .28
+    end if
     STPKPRM  = 10.**(-.04*ALPSTAR) * ST1PRIM                            ! Eq 56 from BPM Airfoil Self-noise and Prediction paper
 
     ! compute reference reynolds number                                 ! Eq 59 from BPM Airfoil Self-noise and Prediction paper
-    IF (ALPSTAR .LE. 3.0) RC0=10.**(.215*ALPSTAR+4.978)
-    IF (ALPSTAR .GT. 3.0) RC0=10.**(.120*ALPSTAR+5.263)
+    IF (ALPSTAR .LE. 3.0) then
+       RC0=10.**(.215*ALPSTAR+4.978)
+    else
+       RC0=10.**(.120*ALPSTAR+5.263)
+    end if
+    
     ! compute peak scaled spectrum level
     D   = RC / RC0                                                      ! Used in Eq 58 from BPM Airfoil Self-noise and Prediction paper
-    IF (D .LE. .3237)                        G2 =77.852*LOG10(D)+15.328       ! Begin Eq 58 from BPM Airfoil Self-noise and Prediction paper
-    IF ((D .GT. .3237).AND.(D .LE. .5689))   G2 = 65.188*LOG10(D) + 9.125
-    IF ((D .GT. .5689).AND.(D .LE. 1.7579))  G2 = -114.052 * LOG10(D)**2
-    IF ((D .GT. 1.7579).AND.(D .LE. 3.0889)) G2 = -65.188*LOG10(D)+9.125
-    IF (D .GT. 3.0889)                       G2 =-77.852*LOG10(D)+15.328      ! end
+    if (D .LE. .3237) then
+       G2 =77.852*LOG10(D)+15.328       ! Begin Eq 58 from BPM Airfoil Self-noise and Prediction paper
+    elseif (D .LE. .5689) then
+       G2 = 65.188*LOG10(D) + 9.125
+    elseif (D .LE. 1.7579) then
+       G2 = -114.052 * LOG10(D)**2
+    elseif (D .LE. 3.0889) then
+       G2 = -65.188*LOG10(D)+9.125
+    else 
+       G2 =-77.852*LOG10(D)+15.328
+    end if
+    
     ! compute angle-dependent level for shape curve
-   G3      = 171.04 - 3.03 * ALPSTAR                                    ! Eq 60 from BPM Airfoil Self-noise and Prediction paper
+    G3      = 171.04 - 3.03 * ALPSTAR                                    ! Eq 60 from BPM Airfoil Self-noise and Prediction paper
     SCALE   = 10. * LOG10(DELTAP*M**5*DBARH*L/R**2)                     ! From Eq 53 from BPM Airfoil Self-noise and Prediction paper
+    
     ! Compute scaled sound pressure levels for each strouhal number
     DO I=1,SIZE(p%FreqList)
         STPRIM  = p%FreqList(I) * DELTAP / U                            ! Eq 54 from BPM Airfoil Self-noise and Prediction paper
         E          = STPRIM / STPKPRM                                   ! Used in Eq 57 from BPM Airfoil Self-noise and Prediction paper
-        IF (E .LE. .5974)                      G1 = 39.8*LOG10(E)-11.12                   ! Begin Eq 57 from BPM Airfoil Self-noise and Prediction paper   
-        IF ((E .GT. .5974).AND.(E .LE. .8545)) G1 = 98.409 * LOG10(E) + 2.0
-        IF ((E .GT. .8545).AND.(E .LE. 1.17))  G1 = -5.076+SQRT(2.484-506.25*(LOG10(E))**2)
-        IF ((E .GT. 1.17).AND.(E .LE. 1.674))  G1 = -98.409 * LOG10(E) + 2.0
-        IF (E .GT. 1.674)                      G1 = -39.80*LOG10(E)-11.12                 ! end
+        IF (E .LE. .5974) then
+           G1 = 39.8*LOG10(E)-11.12                   ! Begin Eq 57 from BPM Airfoil Self-noise and Prediction paper   
+        ELSEIF(E .LE. .8545) then
+           G1 = 98.409 * LOG10(E) + 2.0
+        ELSEIF (E .LE. 1.17) then
+           G1 = -5.076+SQRT(2.484-506.25*(LOG10(E))**2)
+        ELSEIF (E .LE. 1.674) then
+           G1 = -98.409 * LOG10(E) + 2.0
+        ELSE
+           G1 = -39.80*LOG10(E)-11.12
+        END IF
         SPLLAM(I) = G1 + G2 + G3 + SCALE                                      ! Eq 53 from BPM Airfoil Self-noise and Prediction paper
     ENDDO
 END SUBROUTINE LBLVS
@@ -1403,6 +1426,7 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return 
     ENDIF
+    
     ! Compute directivity function
     CALL DIRECTL(M,THETA,PHI,DBARL,errStat2,errMsg2)
     CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
@@ -1890,6 +1914,7 @@ SUBROUTINE BLUNT(ALPSTAR,C,U ,THETA,PHI,L,R,H,PSI,p,d99Var2,dstarVar1,dstarVar2,
         CALL THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat2,errMsg2)
         CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
     ENDIF
+    
     ! Compute average displacement thickness
     DSTRAVG = (DSTRS + DSTRP) / 2.
     HDSTAR  = H / DSTRAVG
@@ -2064,20 +2089,25 @@ SUBROUTINE THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal,errStat,errMsg)
     DELTA0                     = 10.**(1.6569-0.9045*LOG10(RC)+0.0596*LOG10(RC)**2)*C ! (untripped)         Eq. (5) of [1]
     IF (p%ITRIP /= ITRIP_None) DELTA0 = 10.**(1.892 -0.9045*LOG10(RC)+0.0596*LOG10(RC)**2)*C ! (heavily tripped)   Eq. (2) of [1]
     IF (p%ITRIP .EQ. ITRIP_Light) DELTA0=.6*DELTA0
+    
     ! Pressure side boundary layer thickness, Eq (8) of [1]
     DELTAP   = 10.**(-.04175*ALPSTAR+.00106*ALPSTAR**2)*DELTA0
+    
     ! Compute zero angle of attack displacement thickness
     IF (p%ITRIP /= ITRIP_None) THEN
         ! Heavily tripped, Eq. (3) of [1]
-        IF (RC .LE. .3E+06) DSTR0 = .0601 * RC **(-.114)*C
-        IF (RC .GT. .3E+06) &
+        IF (RC .LE. .3E+06) THEN
+           DSTR0 = .0601 * RC **(-.114)*C
+        ELSE
             DSTR0=10.**(3.411-1.5397*LOG10(RC)+.1059*LOG10(RC)**2)*C
+        END IF
         ! Lightly tripped
         IF (p%ITRIP .EQ. ITRIP_Light) DSTR0 = DSTR0 * .6
     ELSE
         ! Untripped, Eq. (6) of [1]
         DSTR0=10.**(3.0187-1.5397*LOG10(RC)+.1059*LOG10(RC)**2)*C
     ENDIF
+    
     ! Pressure side displacement thickness, Eq. (9) of [1]
     DSTRP   = 10.**(-.0432*ALPSTAR+.00113*ALPSTAR**2)*DSTR0
     !      IF (p%ITRIP .EQ. 3) DSTRP = DSTRP * 1.48 ! commented since itrip is never 3 check if meant 2.(EB_DTU)
