@@ -984,8 +984,8 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
             !--------Read in Boundary Layer Data-------------------------!
             IF (p%X_BLMethod .EQ. X_BLMethod_Tables) THEN
-                call BL_Param_Interp(p,m,Unoise,AlphaNoise,p%BlChord(J,I),p%BlAFID(J,I), errStat2, errMsg2)
-                CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat >= AbortErrLev) return
+                call BL_Param_Interp(p, m, Unoise, AlphaNoise, p%BlChord(J,I), p%BlAFID(J,I))
+
                 m%d99Var     = m%d99Var*p%BlChord(J,I)
                 m%dstarVar   = m%dstarVar*p%BlChord(J,I)
             ENDIF
@@ -2386,112 +2386,100 @@ END SUBROUTINE TBLTE_TNO
 
 
 !====================================================================================================
-SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichairfoil, errStat, errMsg)
-  TYPE(AA_ParameterType),                INTENT(IN   ) :: p              !< Parameters
-  TYPE(AA_MiscVarType),              INTENT(INOUT)     :: m              !< misc/optimization data (not defined in submodules)
-  REAL(ReKi),                        INTENT(IN   )     :: U              !< METERS/SEC
-  REAL(ReKi),                        INTENT(IN   )     :: AlphaNoise     !< Angle of Attack                           DEG
-  REAL(ReKi),                        INTENT(IN   )     :: C              !< Chord                                     METERS
-  integer(intKi),                        INTENT(IN   ) :: whichairfoil   !< whichairfoil
-  integer(IntKi),                intent(  out)         :: ErrStat        !< Error status of the operation
-  character(*),                  intent(  out)         :: ErrMsg         !< Error message if ErrStat /= ErrID_None
-  character(*), parameter :: RoutineName = 'BL_Param_Interp'
-  REAL(ReKi)              :: redif1,redif2,aoadif1,aoadif2,xx1,xx2,RC
-  real(ReKi)              :: denom
-  INTEGER(intKi)          :: loop1,loop2
-  logical                 :: re_flag
-  ErrStat = ErrID_None
-  ErrMsg  = ""
+SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichAirfoil)
+   TYPE(AA_ParameterType),                INTENT(IN   ) :: p              !< Parameters
+   TYPE(AA_MiscVarType),                  INTENT(INOUT) :: m              !< misc/optimization data (not defined in submodules)
+   REAL(ReKi),                            INTENT(IN   ) :: U              !< METERS/SEC
+   REAL(ReKi),                            INTENT(IN   ) :: AlphaNoise     !< Angle of Attack                           DEG
+   REAL(ReKi),                            INTENT(IN   ) :: C              !< Chord                                     METERS
+   integer(intKi),                        INTENT(IN   ) :: whichAirfoil   !< whichairfoil
+   
+   character(*), parameter :: RoutineName = 'BL_Param_Interp'
+   REAL(ReKi)              :: RC
+   INTEGER(intKi)          :: i
+  
+   INTEGER, PARAMETER :: NumDimensions = 2
+   INTEGER(IntKi)                                :: MaxIndx(NumDimensions)                       ! max sizes associated with each dimension of array
+   INTEGER(IntKi)                                :: Indx_Lo(NumDimensions)                       ! index associated with lower bound of dimension 1,2 where val(Indx_lo(i)) <= InCoord(i) <= val(Indx_hi(i))
+   INTEGER(IntKi)                                :: Indx_Hi(NumDimensions)                       ! index associated with upper bound of dimension 1,2 where val(Indx_lo(i)) <= InCoord(i) <= val(Indx_hi(i))
+   REAL(ReKi)                                    :: Pos_Lo(NumDimensions)                        ! coordinate value with lower bound of dimension 1,2
+   REAL(ReKi)                                    :: Pos_Hi(NumDimensions)                        ! coordinate value with upper bound of dimension 1,2
+
+   REAL(ReKi)                                    :: isopc(NumDimensions)                         ! isoparametric coordinates
+   REAL(ReKi)                                    :: N(2**NumDimensions)                          ! size 2^n
+   REAL(ReKi)                                    :: InCoord(NumDimensions)                       !< Arranged as (x, y)
+
 
   !!!! this if is not used but if necessary two sets of tables can be populated for tripped and untripped cases
-  RC = U  * C/p%KinVisc       ! REYNOLDS NUMBER BASED ON  CHORD
+   RC = U  * C/p%KinVisc       ! REYNOLDS NUMBER BASED ON  CHORD
 
-  re_flag = .FALSE.
-  DO loop1=1,size(p%ReListBL)-1
-      IF (   (RC.le.p%ReListBL(loop1+1)) .and. (RC.gt.p%ReListBL(loop1))  ) then
-          re_flag = .TRUE.
-          redif1=abs(RC-p%ReListBL(loop1+1))
-          redif2=abs(RC-p%ReListBL(loop1))
-          denom = redif1+redif2
+
+      ! find the indices into the arrays representing coordinates of each dimension:
+      !  (by using LocateStp, we do not require equally spaced arrays)
+   InCoord = (/ AlphaNoise, RC /)
+   
+   MaxIndx(1) = SIZE(p%AOAListBL)
+   MaxIndx(2) = SIZE(p%ReListBL)
+
+   CALL LocateStp( InCoord(1), p%AOAListBL, m%LastIndex(1), MaxIndx(1) )
+   CALL LocateStp( InCoord(2), p%ReListBL,  m%LastIndex(2), MaxIndx(2) )
+
+   Indx_Lo = m%LastIndex  ! at this point, 0 <= Indx_Lo(i) <= n(i) for all i
+
+   ! RE (indx 2)
+   do i = 1,2
+      IF (Indx_Lo(i) == 0) THEN
+         Indx_Lo(i) = 1
+      ELSEIF (Indx_Lo(i) == MaxIndx(i) ) THEN
+         Indx_Lo(i) = max( MaxIndx(i) - 1, 1 )                ! make sure it's a valid index
+      END IF
+      Indx_Hi(i) = min( Indx_Lo(i) + 1 , MaxIndx(i) )         ! make sure it's a valid index
+   end do
+  
+   ! calculate the bounding box; the positions of all dimensions:
+
+   pos_Lo(1) = p%AOAListBL( Indx_Lo(1) )
+   pos_Hi(1) = p%AOAListBL( Indx_Hi(1) )
+
+   pos_Lo(2) = p%ReListBL( Indx_Lo(2) )
+   pos_Hi(2) = p%ReListBL( Indx_Hi(2) )
+
+
+      ! 2-D linear interpolation:
+
+   CALL IsoparametricCoords( InCoord, pos_Lo, pos_Hi, isopc )      ! Calculate iospc
+
+   N(1)  = ( 1.0_ReKi + isopc(1) )*( 1.0_ReKi - isopc(2) )
+   N(2)  = ( 1.0_ReKi + isopc(1) )*( 1.0_ReKi + isopc(2) )
+   N(3)  = ( 1.0_ReKi - isopc(1) )*( 1.0_ReKi + isopc(2) )
+   N(4)  = ( 1.0_ReKi - isopc(1) )*( 1.0_ReKi - isopc(2) )
+   N     = N / REAL( SIZE(N), ReKi )  ! normalize
           
-          DO loop2=1,size(p%AOAListBL)-1
+   m%dStarVar  (1) = InterpData( p%dstarall1(  :,:,whichAirfoil) )
+   m%dStarVar  (2) = InterpData( p%dstarall2(  :,:,whichAirfoil) )
+   m%d99Var    (1) = InterpData( p%d99all1(    :,:,whichAirfoil) )
+   m%d99Var    (2) = InterpData( p%d99all2(    :,:,whichAirfoil) )
+   m%CfVar     (1) = InterpData( p%Cfall1(     :,:,whichAirfoil) )
+   m%CfVar     (2) = InterpData( p%Cfall2(     :,:,whichAirfoil) )
+   m%EdgeVelVar(1) = InterpData( p%EdgeVelRat1(:,:,whichAirfoil) )
+   m%EdgeVelVar(2) = InterpData( p%EdgeVelRat2(:,:,whichAirfoil) )
+  
+   print *, m%dStarVar
+contains
+   real(ReKi) function InterpData(Dataset)
+      REAL(ReKi),                  INTENT(IN   ) :: Dataset(:,:)                                 !< Arranged as (x, y)
+      REAL(ReKi)                                 :: u(2**NumDimensions)                          ! size 2^n
 
-              if (  (AlphaNoise.le.p%AOAListBL(loop2+1)) .and. (AlphaNoise.gt.p%AOAListBL(loop2))  ) then
-                  aoadif1=abs(AlphaNoise-p%AOAListBL(loop2+1))
-                  aoadif2=abs(AlphaNoise-p%AOAListBL(loop2))
+      u(1)  = Dataset( Indx_Hi(1), Indx_Lo(2) )
+      u(2)  = Dataset( Indx_Hi(1), Indx_Hi(2) )
+      u(3)  = Dataset( Indx_Lo(1), Indx_Hi(2) )
+      u(4)  = Dataset( Indx_Lo(1), Indx_Lo(2) )
 
-                  xx1=( p%dstarall1(loop2,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%dstarall1(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%dstarVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%dstarall2(loop2,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%dstarall2(loop2+1,loop1+1,whichairfoil)*redif2+p%dstarall2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%dstarVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%d99all1(loop2,loop1+1,whichairfoil)*redif2+p%d99all1(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%d99all1(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%d99Var(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%d99all2(loop2,loop1+1,whichairfoil)*redif2+p%d99all2(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%d99all2(loop2+1,loop1+1,whichairfoil)*redif2+p%d99all2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%d99Var(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%Cfall1(loop2,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%Cfall1(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%CfVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%Cfall2(loop2,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%Cfall2(loop2+1,loop1+1,whichairfoil)*redif2+p%Cfall2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%CfVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%EdgeVelRat1(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%EdgeVelVar(1)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  xx1=( p%EdgeVelRat2(loop2,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2,loop1,whichairfoil)*redif1 ) / denom
-                  xx2=( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2+p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 ) / denom
-                  m%EdgeVelVar(2)=(xx1*aoadif1+xx2*aoadif2) / (aoadif1+aoadif2)
-
-                  return ! We exit the routine !
-              endif
-          end do
-          
-
-          if (AlphaNoise .gt. p%AOAListBL(size(p%AOAListBL))) then
-                CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
-                CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
-                CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(loop2+1))))
-                m%dStarVar  (1) = ( p%dstarall1  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%dStarVar  (2) = ( p%dstarall2  (loop2+1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%d99Var    (1) = ( p%d99all1    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all1    (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%d99Var    (2) = ( p%d99all2    (loop2+1,loop1+1,whichairfoil)*redif2 + p%d99all2    (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%CfVar     (1) = ( p%Cfall1     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%CfVar     (2) = ( p%Cfall2     (loop2+1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%EdgeVelVar(1) = ( p%EdgeVelRat1(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(loop2+1,loop1,whichairfoil)*redif1 )/denom
-                m%EdgeVelVar(2) = ( p%EdgeVelRat2(loop2+1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(loop2+1,loop1,whichairfoil)*redif1 )/denom
-          elseif (AlphaNoise .lt. p%AOAListBL(1)) then
-                CALL WrScr( 'Warning AeroAcoustics Module - Angle of attack (AoA) range is not in the range provided by the user')
-                CALL WrScr( 'Station '// trim(num2lstr(whichairfoil)) )
-                CALL WrScr( 'Airfoil AoA '//trim(num2lstr(AlphaNoise))//'; Using the closest AoA '//trim(num2lstr(p%AOAListBL(1))) )
-                m%dStarVar(1)   = ( p%dstarall1  (1,loop1+1,whichairfoil)*redif2 + p%dstarall1  (1,loop1,whichairfoil)*redif1 ) / denom
-                m%dStarVar(2)   = ( p%dstarall2  (1,loop1+1,whichairfoil)*redif2 + p%dstarall2  (1,loop1,whichairfoil)*redif1 ) / denom
-                m%d99Var(1)     = ( p%d99all1    (1,loop1+1,whichairfoil)*redif2 + p%d99all1    (1,loop1,whichairfoil)*redif1 ) / denom
-                m%d99Var(2)     = ( p%d99all2    (1,loop1+1,whichairfoil)*redif2 + p%d99all2    (1,loop1,whichairfoil)*redif1 ) / denom
-                m%CfVar(1)      = ( p%Cfall1     (1,loop1+1,whichairfoil)*redif2 + p%Cfall1     (1,loop1,whichairfoil)*redif1 ) / denom
-                m%CfVar(2)      = ( p%Cfall2     (1,loop1+1,whichairfoil)*redif2 + p%Cfall2     (1,loop1,whichairfoil)*redif1 ) / denom
-                m%EdgeVelVar(1) = ( p%EdgeVelRat1(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat1(1,loop1,whichairfoil)*redif1 ) / denom
-                m%EdgeVelVar(2) = ( p%EdgeVelRat2(1,loop1+1,whichairfoil)*redif2 + p%EdgeVelRat2(1,loop1,whichairfoil)*redif1 ) / denom
-          endif
-
-      
-      endif    
-  enddo 
-  if (.not. re_flag) then
-    call SetErrStat( ErrID_Fatal, 'The Reynolds number, '//trim(num2lstr(RC))//', is not in the range provided by the user ,['//TRIM(num2lstr(p%ReListBL(1)))//','//TRIM(num2lstr(p%ReListBL(1)))//'].', ErrStat, ErrMsg, RoutineName )
-    
-    return
-  endif 
+      InterpData = SUM ( N * u )
+   
+   end function
 END SUBROUTINE BL_Param_Interp
+
 
 
 SUBROUTINE Aero_Tests()
