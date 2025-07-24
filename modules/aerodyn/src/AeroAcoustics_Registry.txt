@@ -47,8 +47,6 @@ typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputH
 typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputUntSep    {:}    -     -     "Units of the output-to-file channels"     -
 typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputHdrNodes    {:}    -     -     "Names of the output-to-file channels"     -
 typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputUntNodes    {:}    -     -     "Units of the output-to-file channels"     -
-typedef     ^                   InitOutputType       character(1)           delim            -      -     -   "column delimiter" "-"
-typedef     ^                   InitOutputType       ProgDesc            Ver              -     -     -     "This module's name, version, and date"     -
 typedef     ^                   InitOutputType       ReKi                AirDens          -     -     -     "Air density"     kg/m^3
 #
 
@@ -188,7 +186,6 @@ typedef     ^                   ParameterType        CHARACTER(1024)     FTitle 
 # parameters for output
 typedef     ^                   ParameterType        character(20)       outFmt           -      -     -   "Format specifier" "-"
 typedef     ^                   ParameterType        IntKi               NrOutFile        -     -     -     "Nr of output files"     -
-typedef     ^                   ParameterType        character(1)        delim            -      -     -   "column delimiter" "-"
 typedef     ^                   ParameterType        IntKi               NumOuts                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
 typedef     ^                   ParameterType        IntKi               NumOutsForPE                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
 typedef     ^                   ParameterType        IntKi               NumOutsForSep                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
@@ -231,13 +228,10 @@ typedef     ^                   InputType            ReKi                Inflow 
 
 # ..... Outputs ...................................................................................................................
 # Define outputs that are contained on the mesh here:
-#typedef     ^                   OutputType           ReKi                SumSpecNoise      {:}{:}{:}     -     -     "Spectra of summed noise level of each blade and blade nodes for each receiver and frequency"     SPL
 typedef     ^                   OutputType           ReKi                SumSpecNoiseSep   {:}{:}{:}     -     -     "Spectra of summed noise level of all blades and blade nodes for each receiver and frequency"     SPL
-typedef     ^                   OutputType           ReKi                OASPL          {:}{:}{:}     -     -     "summed noise level for each blade and blade nodes and receiver "     SPL
-#typedef     ^                   OutputType           ReKi                OASPL_Mech     {:}{:}{:}{:}     -     -     "7 different mechanism noise level for each blade and blade nodes and receiver "     SPL
-typedef     ^                   OutputType           ReKi                DirectiviOutput     {:}     -     -     " "     SPL
-#typedef     ^                   OutputType           ReKi                OutLECoords     {:}{:}{:}{:}     -     -     " "     m
-typedef     ^                   OutputType           ReKi                PtotalFreq      {:}{:}   -      -      "SPL for each observer and frequency"
+typedef     ^                   OutputType           ReKi                OASPL             {:}{:}{:}     -     -     "summed noise level for each blade and blade nodes and receiver "     SPL
+typedef     ^                   OutputType           ReKi                DirectiviOutput   {:}           -     -     " "     SPL
+typedef     ^                   OutputType           ReKi                PtotalFreq        {:}{:}        -      -      "SPL for each observer and frequency"
 
 # Define outputs that are not on this mesh here:
 typedef     ^                   OutputType           ReKi                WriteOutputForPE       {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"

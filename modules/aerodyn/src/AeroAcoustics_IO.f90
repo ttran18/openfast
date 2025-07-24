@@ -10,11 +10,9 @@ MODULE AeroAcoustics_IO
 
    type(ProgDesc), parameter  :: AA_Ver = ProgDesc( 'AeroAcoustics', '', '' )
    character(*),   parameter  :: AA_Nickname = 'AA'
+   character(*),   parameter  :: delim = Tab
 
    integer(intKi), parameter  :: nNoiseMechanism = 7  ! number of noise mechanisms
-
-
-   INTEGER(IntKi), PARAMETER      :: Time      =    0
 
    INTEGER(IntKi), PARAMETER        :: MaxBl    =  3                                   ! Maximum number of blades allowed in simulation
 
@@ -569,8 +567,6 @@ subroutine AA_SetInitOut(p, InitOut, errStat, errMsg)
             enddo
         enddo
     enddo
-    InitOut%Ver = AA_Ver
-    InitOut%delim = Tab 
 
 contains
     logical function Failed()
@@ -600,7 +596,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       call OpenFOutFile ( p%unOutFile, trim(InputFileData%AAOutFile(1)), ErrStat, ErrMsg )
       if ( ErrStat >= AbortErrLev ) return
 
-      write (p%unOutFile,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(InitOut%ver))
+      write (p%unOutFile,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(AA_ver))
       write (p%unOutFile,'(A)')  ''
       write( p%unOutFile,'(A,I5)' )      'Number of observers      :', p%NrObsLoc
       write (p%unOutFile,'(A)')  'Description from AA input file, line2: '//trim(InputFileData%FTitle)
@@ -611,7 +607,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       !......................................................
       call WrFileNR ( p%unOutFile, '     Time           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile, InitOut%delim//InitOut%WriteOutputHdr(i) )
+         call WrFileNR ( p%unOutFile, delim//InitOut%WriteOutputHdr(i) )
       end do ! i
       write (p%unOutFile,'()')
       !......................................................
@@ -619,10 +615,11 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       !......................................................
       call WrFileNR ( p%unOutFile, '      (s)           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile, InitOut%delim//InitOut%WriteOutputUnt(i) )
+         call WrFileNR ( p%unOutFile, delim//InitOut%WriteOutputUnt(i) )
       end do ! i
       write (p%unOutFile,'()')
    ENDIF
+   
    ! SECOND FILE
    IF (InputFileData%NrOutFile .gt. 1) THEN
       call GetNewUnit( p%unOutFile2, ErrStat, ErrMsg )
@@ -632,7 +629,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       end if
       call OpenFOutFile ( p%unOutFile2, trim(InputFileData%AAOutFile(2)), ErrStat, ErrMsg )
       if ( ErrStat >= AbortErrLev ) return
-      write (p%unOutFile2,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(InitOut%Ver))
+      write (p%unOutFile2,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(AA_Ver))
       write (p%unOutFile2,'(A)')  ''
       write( p%unOutFile2,'(A,I5,A,I5)' )      'Number of observers      :', p%NrObsLoc,';  Number of frequencies    :', size(p%FreqList)
       write (p%unOutFile2,'(A)')  'Description from AA input file, line2: '//trim(InputFileData%FTitle)
@@ -643,7 +640,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       !......................................................
       call WrFileNR ( p%unOutFile2, '     Time           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile2, InitOut%delim//InitOut%WriteOutputHdrforPE(i) )
+         call WrFileNR ( p%unOutFile2, delim//InitOut%WriteOutputHdrforPE(i) )
       end do ! i
       write (p%unOutFile2,'()')
       !......................................................
@@ -651,10 +648,10 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       !......................................................
       call WrFileNR ( p%unOutFile2, '      (s)           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile2, InitOut%delim//InitOut%WriteOutputUntforPE(i) )
+         call WrFileNR ( p%unOutFile2, delim//InitOut%WriteOutputUntforPE(i) )
       end do ! i
       write (p%unOutFile2,'()')
-      !frmt = '"'//p%delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
+      !frmt = '"'//delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
       !call WrNumAryFileNR ( p%unOutFile2, p%FreqList,  frmt, errStat, errMsg )
       !if ( errStat >= AbortErrLev ) return
       !write (p%unOutFile2,'()')
@@ -668,7 +665,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       end if
       call OpenFOutFile ( p%unOutFile3, trim(InputFileData%AAOutFile(3)), ErrStat, ErrMsg )
       if ( ErrStat >= AbortErrLev ) return
-      write (p%unOutFile3,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(InitOut%Ver))
+      write (p%unOutFile3,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(AA_Ver))
       write (p%unOutFile3,'(A)')  ''
       write( p%unOutFile3,'(A,I5,A,I5)' )      'Number of observers      :', p%NrObsLoc,';  Number of frequencies    :', size(p%FreqList)
       write (p%unOutFile3,'(A)')  'Description from AA input file, line2: '//trim(InputFileData%FTitle)
@@ -680,7 +677,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       write (p%unOutFile3,'()')
       call WrFileNR ( p%unOutFile3, '     Time           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile3, InitOut%delim//InitOut%WriteOutputHdrSep(i) )
+         call WrFileNR ( p%unOutFile3, delim//InitOut%WriteOutputHdrSep(i) )
       end do ! i
       write (p%unOutFile3,'()')
       !......................................................
@@ -689,7 +686,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       call WrFileNR ( p%unOutFile3, '      (s)           ' )
 
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile3, InitOut%delim//InitOut%WriteOutputUntSep(i) )
+         call WrFileNR ( p%unOutFile3, delim//InitOut%WriteOutputUntSep(i) )
       end do ! i
       write (p%unOutFile3,'()')
    ENDIF
@@ -702,7 +699,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       end if
       call OpenFOutFile ( p%unOutFile4, trim(InputFileData%AAOutFile(4)), ErrStat, ErrMsg )
       if ( ErrStat >= AbortErrLev ) return
-      write (p%unOutFile4,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(InitOut%Ver))
+      write (p%unOutFile4,'(/,A)')  'Predictions were generated on '//CurDate()//' at '//CurTime()//' using AA '//trim(GetNVD(AA_Ver))
       write (p%unOutFile4,'()')
       write( p%unOutFile4,'(3(A,I5))' )      'Number of observers      :', p%NrObsLoc, ';        Number of blades         :', p%numBlades,'     Number of nodes per blade:', p%NumBlNds
       write (p%unOutFile4,'(A)')  'Description from AA input file, line2: '//trim(InputFileData%FTitle)
@@ -713,7 +710,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       write (p%unOutFile4,'()')
       call WrFileNR ( p%unOutFile4, '     Time           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile4, InitOut%delim//InitOut%WriteOutputHdrNodes(i) )
+         call WrFileNR ( p%unOutFile4, delim//InitOut%WriteOutputHdrNodes(i) )
       end do ! i
       write (p%unOutFile4,'()')
       !......................................................
@@ -721,7 +718,7 @@ subroutine AA_InitializeOutputFile(p, InputFileData,InitOut,errStat, errMsg)
       !......................................................
       call WrFileNR ( p%unOutFile4, '      (s)           ' )
       do i=1,NumOuts
-         call WrFileNR ( p%unOutFile4, InitOut%delim//InitOut%WriteOutputUntNodes(i) )
+         call WrFileNR ( p%unOutFile4, delim//InitOut%WriteOutputUntNodes(i) )
       end do ! i
       write (p%unOutFile4,'()')
    ENDIF
@@ -742,7 +739,7 @@ subroutine AA_WriteOutputLine(y, t, p, errStat, errMsg)
     ! FIRST FILE
     IF (p%NrOutFile .gt. 0) THEN
        numOuts = size(y%WriteOutput)
-       frmt = '"'//p%delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
+       frmt = '"'//delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
        ! time
        write( tmpStr, '(F15.4)' ) t
        call WrFileNR( p%unOutFile, tmpStr )
@@ -755,7 +752,7 @@ subroutine AA_WriteOutputLine(y, t, p, errStat, errMsg)
     !! SECOND FILE
     IF (p%NrOutFile .gt. 1) THEN
        numOuts = size(y%WriteOutputforPE)
-       frmt = '"'//p%delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
+       frmt = '"'//delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
        ! time
        write( tmpStr, '(F15.4)' ) t
        call WrFileNR( p%unOutFile2, tmpStr )
@@ -767,7 +764,7 @@ subroutine AA_WriteOutputLine(y, t, p, errStat, errMsg)
     ! THIRD FILE
     IF (p%NrOutFile .gt. 2) THEN
        numOuts = size(y%WriteOutputSep)
-       frmt = '"'//p%delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
+       frmt = '"'//delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
        ! time
        write( tmpStr, '(F15.4)' ) t
        call WrFileNR( p%unOutFile3, tmpStr )
@@ -779,7 +776,7 @@ subroutine AA_WriteOutputLine(y, t, p, errStat, errMsg)
     ! Fourth FILE
     IF (p%NrOutFile .gt. 3) THEN
        numOuts = size(y%WriteOutputNode)
-       frmt = '"'//p%delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
+       frmt = '"'//delim//'"'//trim(p%outFmt)      ! format for array elements from individual modules
        ! time
        write( tmpStr, '(F15.4)' ) t
        call WrFileNR( p%unOutFile4, tmpStr )
@@ -809,44 +806,45 @@ SUBROUTINE Calc_WriteOutput( p, u, m, y, ErrStat, ErrMsg )
    ! FOR THE FIRST OUTPUT FILE
    IF (p%NrOutFile .gt. 0) THEN
       y%WriteOutput(1:p%NrObsLoc)=y%DirectiviOutput
-   endif
 
-   ! FOR THE SECOND OUTPUT FILE
-   IF (p%NrOutFile .gt. 1) THEN
-      counter=0
-      DO K = 1,p%NrObsLoc
-         DO III = 1,size(p%FreqList)
-            counter=counter+1
-            y%WriteOutputforPE(counter) = y%PtotalFreq(III,K)
-         END DO !
-      END DO !
-   ENDIF
-
-   ! FOR THE THIRD OUTPUT FILE
-   IF (p%NrOutFile .gt. 2) THEN
-      counter=0
-      do K = 1,p%NrObsLoc
-         do III = 1,size(p%FreqList)
-            do oi=1,nNoiseMechanism
+      ! FOR THE SECOND OUTPUT FILE
+      IF (p%NrOutFile .gt. 1) THEN
+         counter=0
+         DO K = 1,p%NrObsLoc
+            DO III = 1,size(p%FreqList)
                counter=counter+1
-               y%WriteOutputSep(counter) = y%SumSpecNoiseSep(oi,III,K)
-            enddo
-         enddo
-      enddo
-   ENDIF
-
-    ! FOR THE FOURTH OUTPUT FILE
-    IF (p%NrOutFile .gt. 3) THEN
-        counter=0
-        DO I = 1,p%numBlades
-            DO J = 1,p%NumBlNds
-                DO K = 1,p%NrObsLoc
-                    counter=counter+1
-                    y%WriteOutputNode(counter) = y%OASPL(K,J,I)
-                END DO !
+               y%WriteOutputforPE(counter) = y%PtotalFreq(III,K)
             END DO !
-        ENDDO
-    ENDIF
+         END DO !
+
+         ! FOR THE THIRD OUTPUT FILE
+         IF (p%NrOutFile .gt. 2) THEN
+            counter=0
+            do K = 1,p%NrObsLoc
+               do III = 1,size(p%FreqList)
+                  do oi=1,nNoiseMechanism
+                     counter=counter+1
+                     y%WriteOutputSep(counter) = y%SumSpecNoiseSep(oi,III,K)
+                  enddo
+               enddo
+            enddo
+
+             ! FOR THE FOURTH OUTPUT FILE
+             IF (p%NrOutFile .gt. 3) THEN
+                 counter=0
+                 DO I = 1,p%numBlades
+                     DO J = 1,p%NumBlNds
+                         DO K = 1,p%NrObsLoc
+                             counter=counter+1
+                             y%WriteOutputNode(counter) = y%OASPL(K,J,I)
+                         END DO !
+                     END DO !
+                 ENDDO
+             ENDIF
+         ENDIF
+      ENDIF
+   ENDIF
+    
 END SUBROUTINE Calc_WriteOutput
 !----------------------------------------------------------------------------------------------------------------------------------
 END MODULE AeroAcoustics_IO

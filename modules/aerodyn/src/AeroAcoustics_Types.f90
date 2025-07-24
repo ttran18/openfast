@@ -66,8 +66,6 @@ IMPLICIT NONE
     CHARACTER(25) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUntSep      !< Units of the output-to-file channels [-]
     CHARACTER(25) , DIMENSION(:), ALLOCATABLE  :: WriteOutputHdrNodes      !< Names of the output-to-file channels [-]
     CHARACTER(25) , DIMENSION(:), ALLOCATABLE  :: WriteOutputUntNodes      !< Units of the output-to-file channels [-]
-    character(1)  :: delim      !< column delimiter [-]
-    TYPE(ProgDesc)  :: Ver      !< This module's name, version, and date [-]
     REAL(ReKi)  :: AirDens = 0.0_ReKi      !< Air density [kg/m^3]
   END TYPE AA_InitOutputType
 ! =======================
@@ -213,7 +211,6 @@ IMPLICIT NONE
     CHARACTER(1024)  :: FTitle      !< File Title: the 2nd line of the input file, which contains a description of its contents [-]
     character(20)  :: outFmt      !< Format specifier [-]
     INTEGER(IntKi)  :: NrOutFile = 0_IntKi      !< Nr of output files [-]
-    character(1)  :: delim      !< column delimiter [-]
     INTEGER(IntKi)  :: NumOuts = 0_IntKi      !< Number of parameters in the output list (number of outputs requested) [-]
     INTEGER(IntKi)  :: NumOutsForPE = 0_IntKi      !< Number of parameters in the output list (number of outputs requested) [-]
     INTEGER(IntKi)  :: NumOutsForSep = 0_IntKi      !< Number of parameters in the output list (number of outputs requested) [-]
@@ -490,7 +487,6 @@ subroutine AA_CopyInitOutput(SrcInitOutputData, DstInitOutputData, CtrlCode, Err
    character(*),    intent(  out) :: ErrMsg
    integer(B4Ki)                  :: LB(1), UB(1)
    integer(IntKi)                 :: ErrStat2
-   character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'AA_CopyInitOutput'
    ErrStat = ErrID_None
    ErrMsg  = ''
@@ -590,10 +586,6 @@ subroutine AA_CopyInitOutput(SrcInitOutputData, DstInitOutputData, CtrlCode, Err
       end if
       DstInitOutputData%WriteOutputUntNodes = SrcInitOutputData%WriteOutputUntNodes
    end if
-   DstInitOutputData%delim = SrcInitOutputData%delim
-   call NWTC_Library_CopyProgDesc(SrcInitOutputData%Ver, DstInitOutputData%Ver, CtrlCode, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
-   if (ErrStat >= AbortErrLev) return
    DstInitOutputData%AirDens = SrcInitOutputData%AirDens
 end subroutine
 
@@ -601,8 +593,6 @@ subroutine AA_DestroyInitOutput(InitOutputData, ErrStat, ErrMsg)
    type(AA_InitOutputType), intent(inout) :: InitOutputData
    integer(IntKi),  intent(  out) :: ErrStat
    character(*),    intent(  out) :: ErrMsg
-   integer(IntKi)                 :: ErrStat2
-   character(ErrMsgLen)           :: ErrMsg2
    character(*), parameter        :: RoutineName = 'AA_DestroyInitOutput'
    ErrStat = ErrID_None
    ErrMsg  = ''
@@ -630,8 +620,6 @@ subroutine AA_DestroyInitOutput(InitOutputData, ErrStat, ErrMsg)
    if (allocated(InitOutputData%WriteOutputUntNodes)) then
       deallocate(InitOutputData%WriteOutputUntNodes)
    end if
-   call NWTC_Library_DestroyProgDesc(InitOutputData%Ver, ErrStat2, ErrMsg2)
-   call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
 end subroutine
 
 subroutine AA_PackInitOutput(RF, Indata)
@@ -647,8 +635,6 @@ subroutine AA_PackInitOutput(RF, Indata)
    call RegPackAlloc(RF, InData%WriteOutputUntSep)
    call RegPackAlloc(RF, InData%WriteOutputHdrNodes)
    call RegPackAlloc(RF, InData%WriteOutputUntNodes)
-   call RegPack(RF, InData%delim)
-   call NWTC_Library_PackProgDesc(RF, InData%Ver) 
    call RegPack(RF, InData%AirDens)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
@@ -669,8 +655,6 @@ subroutine AA_UnPackInitOutput(RF, OutData)
    call RegUnpackAlloc(RF, OutData%WriteOutputUntSep); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputHdrNodes); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%WriteOutputUntNodes); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%delim); if (RegCheckErr(RF, RoutineName)) return
-   call NWTC_Library_UnpackProgDesc(RF, OutData%Ver) ! Ver 
    call RegUnpack(RF, OutData%AirDens); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -1956,7 +1940,6 @@ subroutine AA_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
    DstParamData%FTitle = SrcParamData%FTitle
    DstParamData%outFmt = SrcParamData%outFmt
    DstParamData%NrOutFile = SrcParamData%NrOutFile
-   DstParamData%delim = SrcParamData%delim
    DstParamData%NumOuts = SrcParamData%NumOuts
    DstParamData%NumOutsForPE = SrcParamData%NumOutsForPE
    DstParamData%NumOutsForSep = SrcParamData%NumOutsForSep
@@ -2408,7 +2391,6 @@ subroutine AA_PackParam(RF, Indata)
    call RegPack(RF, InData%FTitle)
    call RegPack(RF, InData%outFmt)
    call RegPack(RF, InData%NrOutFile)
-   call RegPack(RF, InData%delim)
    call RegPack(RF, InData%NumOuts)
    call RegPack(RF, InData%NumOutsForPE)
    call RegPack(RF, InData%NumOutsForSep)
@@ -2511,7 +2493,6 @@ subroutine AA_UnPackParam(RF, OutData)
    call RegUnpack(RF, OutData%FTitle); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%outFmt); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NrOutFile); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%delim); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NumOuts); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NumOutsForPE); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NumOutsForSep); if (RegCheckErr(RF, RoutineName)) return

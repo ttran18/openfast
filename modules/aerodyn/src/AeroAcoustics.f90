@@ -176,7 +176,6 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     p%ROUND            = InputFileData%ROUND
     p%alprat           = InputFileData%ALPRAT
     p%NrOutFile        = InputFileData%NrOutFile
-    p%delim            = Tab 
     p%outFmt           = "ES15.6E3" 
     p%NumBlNds         = InitInp%NumBlNds
     p%AirDens          = InitInp%AirDens          
@@ -495,10 +494,7 @@ subroutine Init_y(y, u, p, errStat, errMsg)
     y%WriteOutput        = 0.0_reki
     y%WriteOutputSep     = 0.0_reki
     y%WriteOutputForPE   = 0.0_reki
-    y%DirectiviOutput    = 0.0_reki
     y%WriteOutputNode    = 0.0_reki
-    y%OASPL              = 0.0_reki
-    y%SumSpecNoiseSep    = 0.0_reki
     y%PtotalFreq         = 0.0_reki
 
 contains
@@ -1039,8 +1035,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
                     ! Amiet's Inflow Noise Model is Calculated as long as InflowNoise is On
                     CALL InflowNoise(AlphaNoise,p%BlChord(J,I),Unoise,m%ChordAngleLE(K,J,I),m%SpanAngleLE(K,J,I),&
-                        elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti,errStat2,errMsg2 )
-                    CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName ); if (ErrStat>=AbortErrLev) return 
+                        elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti )
                     
                     ! If Guidati model (simplified or full version) is also on then the 'SPL correction' to Amiet's model will be added 
                     IF ( p%IInflow .EQ. IInflow_FullGuidati )   THEN      
@@ -1078,7 +1073,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
          
                   ! If flag for LBL is ON and Boundary Layer Trip is OFF, then compute LBL
                   IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )  THEN
-                     IF (p%AweightFlag .eqv. .TRUE.) THEN
+                     IF (p%AweightFlag) THEN
                          m%SPLLBL(III) = m%SPLLBL(III) + p%Aweight(III)                ! A-weighting
                      ENDIF
                         
@@ -1093,7 +1088,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
                   ! If flag for TBL is ON, compute Pressure, Suction, and AoA contributions
                   IF ( p%ITURB /= ITURB_None )  THEN
-                     IF (p%AweightFlag .eqv. .TRUE.) THEN
+                     IF (p%AweightFlag) THEN
                         m%SPLP(III) = m%SPLP(III) + p%Aweight(III)                     ! A-weighting
                         m%SPLS(III) = m%SPLS(III) + p%Aweight(III)                     ! A-weighting
                         m%SPLALPH(III) = m%SPLALPH(III) + p%Aweight(III)               ! A-weighting
@@ -1133,7 +1128,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
                   ! If flag for Tip is ON and the current blade node (J) is the last node (tip), compute Tip contribution
                   IF ( (p%ITIP == ITIP_ON) .AND. (J .EQ. p%NumBlNds) )  THEN
-                     IF (p%AweightFlag .eqv. .TRUE.) THEN
+                     IF (p%AweightFlag) THEN
                         m%SPLTIP(III) = m%SPLTIP(III) + p%Aweight(III)                    ! A-weighting
                      ENDIF
                         
@@ -1148,7 +1143,7 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
                   ! If flag for TI is ON, compute Turbulent Inflow contribution
                   IF ( (p%IInflow /= IInflow_None)  )  THEN
-                     IF (p%AweightFlag .eqv. .TRUE.) THEN
+                     IF (p%AweightFlag) THEN
                         m%SPLti(III) = m%SPLti(III) + p%Aweight(III)                      ! A-weighting
                      ENDIF
                         
@@ -1164,7 +1159,6 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
                 ENDDO ! III = 1, size(p%FreqList)
               
               y%DirectiviOutput(K)         = Ptotal + y%DirectiviOutput(K)            ! Assigns Overall Pressure to Appropriate Observer for Directivity   
-              IF (y%DirectiviOutput(K)  .EQ. 0.)      y%DirectiviOutput(K) = 1        ! Since these will all be converted via LOG10, they will produce an error if .EQ. 0. 
                                                                                           !    Set .EQ. to 1 instead (LOG10(1)=0)
               y%OASPL(K,J,I) = Ptotal + y%OASPL(K,J,I)               ! Assigns Overall Pressure to Appropriate Observer/Blade/Node for Directivity
            ENDDO ! Loop on observers
@@ -1173,41 +1167,44 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
     ! If any Output file is wanted, convert DirectiviOutput from Directivity Factor to Directivity Index
     ! Ref: Fundamentals of Acoustics by Colin Hansen (1951)
-    y%DirectiviOutput = 10.*LOG10(y%DirectiviOutput)        !! DirectiviOutput is used as total observer OASPL for Output File 1
-    
-    ! Since these will all be converted via LOG10, they will produce an error if .EQ. 0., Set .EQ. to 1 instead (LOG10(1)=0)
-    DO I = 1,p%numBlades
-        DO J = 1,p%NumBlNds
-            DO K = 1,p%NrObsLoc 
-                IF (y%OASPL(K,J,I)  .EQ. 0.)      y%OASPL(K,J,I) = 1   
-            ENDDO
-        ENDDO
-    ENDDO
-    IF  (p%NrOutFile .gt. 0) y%OASPL = 10.*LOG10(y%OASPL)                            !! OASPL is used as observer/blade/node OASPL for Output File 4
-
-    ! Procedure for Output file 2
-    IF  (p%NrOutFile .gt. 1) THEN 
-      DO K = 1,p%NrObsLoc
-         DO III=1,size(p%FreqList)
-            IF (y%PtotalFreq(III,K) .EQ. 0.)       y%PtotalFreq(III,K) = 1
-                y%PtotalFreq(III,K)    = 10.*LOG10(y%PtotalFreq(III,K))               ! P to SPL conversion
-         ENDDO
-      ENDDO
-    ENDIF
-
-   ! If 3rd Output file is needed, these will need to be converted via LOG10. Change to equal 1 to avoid error.
-   DO K = 1,p%NrObsLoc
-      DO III = 1,size(p%FreqList)
-         DO oi = 1,7
-            IF (y%SumSpecNoiseSep(oi,III,K)  .EQ. 0.) y%SumSpecNoiseSep(oi,III,K) = 1 
-         ENDDO
-      ENDDO
-   ENDDO
    
-   ! Procedure for Output file 3
-   IF  (p%NrOutFile .gt. 2) THEN 
-        y%SumSpecNoiseSep = 10.*LOG10(y%SumSpecNoiseSep)      ! P to SPL Conversion
-    ENDIF
+    ! Since these will all be converted via LOG10, they will produce an error if .EQ. 0., Set .EQ. to 1 instead (LOG10(1)=0)
+   DO K = 1,p%NrObsLoc 
+      IF (y%DirectiviOutput(K)  .NE. 0.)      y%DirectiviOutput(K) = 10.*LOG10(y%DirectiviOutput(K))        !! DirectiviOutput is used as total observer OASPL for Output File 1
+   ENDDO ! Loop on observers
+   
+   IF  (p%NrOutFile .gt. 0) THEN                             !! OASPL is used as observer/blade/node OASPL for Output File 4
+   
+      DO I = 1,p%numBlades
+         DO J = 1,p%NumBlNds
+            DO K = 1,p%NrObsLoc 
+               IF (y%OASPL(K,J,I)  .NE. 0.) y%OASPL(K,J,I) = 10.*LOG10(y%OASPL(K,J,I))
+            ENDDO
+         ENDDO
+      ENDDO
+
+       ! Procedure for Output file 2
+      IF  (p%NrOutFile .gt. 1) THEN 
+         DO K = 1,p%NrObsLoc
+            DO III=1,size(p%FreqList)
+               IF (y%PtotalFreq(III,K) .NE. 0.)  y%PtotalFreq(III,K)    = 10.*LOG10(y%PtotalFreq(III,K))               ! P to SPL conversion
+            ENDDO
+         ENDDO
+      ENDIF
+
+   ! Procedure for Output file 3; If 3rd Output file is needed, convert P to SPL (skip values = 0).
+      IF  (p%NrOutFile .gt. 2) THEN 
+         DO K = 1,p%NrObsLoc
+            DO III = 1,size(p%FreqList)
+               DO oi = 1,7
+                  IF (y%SumSpecNoiseSep(oi,III,K)  .NE. 0.) y%SumSpecNoiseSep(oi,III,K) = 10.*LOG10(y%SumSpecNoiseSep(oi,III,K))      ! P to SPL Conversion
+               ENDDO
+            ENDDO
+         ENDDO
+      END IF
+      
+   END IF
+
    
 END SUBROUTINE CalcAeroAcousticsOutput
 !==================================================================================================================================!
@@ -1610,7 +1607,7 @@ SUBROUTINE TIPNOIS(ALPHTIP,ALPRAT2,C,U ,THETA,PHI, R,p,SPLTIP)
     ENDDO
 END SUBROUTINE TipNois
 !==================================================================================================================================!
-SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errStat,errMsg)
+SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti)
   REAL(ReKi),                                 INTENT(IN   ) :: AlphaNoise     ! AOA, deg
   REAL(ReKi),                                 INTENT(IN   ) :: Chord          ! Chord Length
   REAL(ReKi),                                 INTENT(IN   ) :: U              !
@@ -1625,12 +1622,8 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
 !  REAL(ReKi),                                 INTENT(IN   ) :: dissip         !
   TYPE(AA_ParameterType),                     INTENT(IN   ) :: p              ! Parameters
   REAL(ReKi),DIMENSION(size(p%FreqList)),     INTENT(  OUT) :: SPLti          !
-  INTEGER(IntKi),                             INTENT(  OUT) :: errStat        ! Error status of the operation
-  character(*),                               INTENT(  OUT) :: errMsg         ! Error message if ErrStat /= ErrID_None
-  integer(intKi)                                            :: ErrStat2       ! temporary Error status
-  character(ErrMsgLen)                                      :: ErrMsg2        ! temporary Error message
-  character(*), parameter                                   :: RoutineName = 'InflowNoise'
-! local variables
+
+  ! local variables
   REAL(ReKi)                   :: Beta2                                           ! Prandtl-Glauert correction factor
   REAL(ReKi)                   :: DBARH                                           ! High-frequency directivity correction factor
   REAL(ReKi)                   :: DBARL                                           ! Low-frequency directivity correction factor
@@ -1652,8 +1645,6 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti,errSt
   ! REAL(ReKi)                   :: L_Gammas                                  ! nafnoise 
 
   INTEGER(intKi)           :: I        !I A generic index for DO loops.
-   ErrStat = ErrID_None
-   ErrMsg  = ""
 
    !!!--- NAF NOISE IDENTICAL
    Mach = U/p%SpdSound
@@ -2437,7 +2428,7 @@ SUBROUTINE Aero_Tests()
     !CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
     !    m%rTEtoObserve(K,J,I), p, m%SPLTIP,ErrStat2,errMsg2)
     !--------Inflow Turbulence Noise ------------------------------------------------!
-    !CALL InflowNoise(3.0d0,0.22860d0,63.920d0,90.0d0,90.0d0,0.5090d0,1.220d0, xd%TIVx(J,I),0.050d0,p,m%SPLti,ErrStat2,errMsg2 )
+    !CALL InflowNoise(3.0d0,0.22860d0,63.920d0,90.0d0,90.0d0,0.5090d0,1.220d0, xd%TIVx(J,I),0.050d0,p,m%SPLti )
     !CALL FullGuidati(3.0d0,63.920d0,0.22860d0,0.5090d0,1.220d0,90.0d0,90.0d0,xd%MeanVrel(J,I),xd%TIVrel(J,I), &
     !    p,p%BlAFID(J,I),m%SPLTIGui,ErrStat2 )
     !CALL Simple_Guidati(UNoise,0.22860d0,0.120d0,0.020d0,p,m%SPLTIGui)
