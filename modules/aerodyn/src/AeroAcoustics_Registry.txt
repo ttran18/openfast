@@ -45,9 +45,8 @@ typedef     ^                   InitOutputType       CHARACTER(20)  WriteOutputH
 typedef     ^                   InitOutputType       CHARACTER(20)  WriteOutputUntforPE  {:}    -     -     "Units of the output-to-file channels"     -
 typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputHdrSep    {:}    -     -     "Names of the output-to-file channels"     -
 typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputUntSep    {:}    -     -     "Units of the output-to-file channels"     -
-typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputHdrNodes    {:}    -     -     "Names of the output-to-file channels"     -
-typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputUntNodes    {:}    -     -     "Units of the output-to-file channels"     -
-typedef     ^                   InitOutputType       ReKi                AirDens          -     -     -     "Air density"     kg/m^3
+typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputHdrNodes  {:}    -     -     "Names of the output-to-file channels"     -
+typedef     ^                   InitOutputType       CHARACTER(25)  WriteOutputUntNodes  {:}    -     -     "Units of the output-to-file channels"     -
 #
 
 # ..... Primary Input file data ...................................................................................................
@@ -94,15 +93,9 @@ typedef     ^                   AA_InputFile         ReKi                Suct_Ed
 typedef     ^                   ContinuousStateType  SiKi                DummyContState   -     -     -     "Remove this variable if you have continuous states"        -
 #
 # Define discrete (nondifferentiable) states here:
-typedef     ^                   DiscreteStateType    ReKi                MeanVrel        {:}{:} -     -     "Vrel Cumu. Mean"        -
-typedef     ^                   DiscreteStateType    ReKi                VrelSq          {:}{:} -     -     "Vrel Squared Store"        -
-typedef     ^                   DiscreteStateType    ReKi                TIVrel          {:}{:} -     -     "Vrel St. deviat"        -
-typedef     ^                   DiscreteStateType    ReKi                VrelStore       {:}{:}{:} -     -     "Vrel Store for fft - dissipation"        -
 typedef     ^                   DiscreteStateType    ReKi                TIVx          {:}{:} -     -     "Vx St. deviat"        -
 typedef     ^                   DiscreteStateType    ReKi                MeanVxVyVz        {:}{:} -     -     "Vrel Cumu. Mean"        -
-typedef     ^                   DiscreteStateType    ReKi                VxSq          {:}{:} -     -     "Vxl Squared Store"        -
 typedef     ^                   DiscreteStateType    ReKi                allregcounter      {:}{:} -     -     ""        -
-typedef     ^                   DiscreteStateType    ReKi                VxSqRegion         {:}{:} -     -     ""        -
 typedef     ^                   DiscreteStateType    ReKi                RegVxStor       {:}{:}{:} -     -     "VxVyVz Store for fft or TI - dissipation"        -
 typedef     ^                   DiscreteStateType    ReKi                RegionTIDelete         {:}{:} -     -     ""        -
 #
@@ -137,6 +130,12 @@ typedef     ^                   MiscVarType          ReKi                d99Var 
 typedef     ^                   MiscVarType          ReKi                dStarVar               {:}  -     -     "BL Output "     -
 typedef     ^                   MiscVarType          ReKi                EdgeVelVar                 {:}  -     -     "BL Output "     -
 typedef     ^                   MiscVarType          IntKi               LastIndex              {2}    -     -     "index for BL param interpolation"     -
+# arrays for calculating WriteOutput values
+typedef     ^                   MiscVarType          ReKi                SumSpecNoiseSep   {:}{:}{:}     -     -     "Spectra of summed noise level of all blades and blade nodes for each receiver and frequency"     SPL
+typedef     ^                   MiscVarType          ReKi                OASPL             {:}{:}{:}     -     -     "summed noise level for each blade and blade nodes and receiver "     SPL
+typedef     ^                   MiscVarType          ReKi                DirectiviOutput   {:}           -     -     " "     SPL
+typedef     ^                   MiscVarType          ReKi                PtotalFreq        {:}{:}        -     -     "SPL for each observer and frequency"
+
 
 # ..... Parameters ................................................................................................................
 # Define parameters here:
@@ -186,16 +185,10 @@ typedef     ^                   ParameterType        CHARACTER(1024)     FTitle 
 # parameters for output
 typedef     ^                   ParameterType        character(20)       outFmt           -      -     -   "Format specifier" "-"
 typedef     ^                   ParameterType        IntKi               NrOutFile        -     -     -     "Nr of output files"     -
-typedef     ^                   ParameterType        IntKi               NumOuts                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
-typedef     ^                   ParameterType        IntKi               NumOutsForPE                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
-typedef     ^                   ParameterType        IntKi               NumOutsForSep                 -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
-typedef     ^                   ParameterType        IntKi               NumOutsForNodes               -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
-typedef     ^                   ParameterType        IntKi               unOutFile        -      -     -   "unit number for writing output file" "-"
-typedef     ^                   ParameterType        IntKi               unOutFile2        -      -     -   "unit number for writing output file" "-"
-typedef     ^                   ParameterType        IntKi               unOutFile3        -      -     -   "unit number for writing output file" "-"
-typedef     ^                   ParameterType        IntKi               unOutFile4        -      -     -   "unit number for writing output file" "-"
+typedef     ^                   ParameterType        IntKi               NumOuts          -      -     -     "Number of parameters in the output list (number of outputs requested)"     -
+typedef     ^                   ParameterType        IntKi               NumOutsAll      {4}      -     -     "Number of parameters in the output list (number of outputs requested)"     -
+typedef     ^                   ParameterType        IntKi               unOutFile       {4}     -     -   "unit number for writing output file" "-"
 typedef     ^                   ParameterType        CHARACTER(1024)     RootName                -      -     -     "RootName for writing output files"     -
-typedef     ^                   ParameterType        OutParmType         OutParam               {:}     -     -     "Names and units (and other characteristics) of all requested output parameters"     -
 typedef     ^                   ParameterType        ReKi                StallStart                {:}{:}  -     -     "ation"     -
 typedef     ^                   ParameterType        ReKi                TEThick                {:}{:}  -     -     "ation"     -
 typedef     ^                   ParameterType        ReKi                TEAngle                {:}{:}  -     -     "ation"     -
@@ -228,13 +221,8 @@ typedef     ^                   InputType            ReKi                Inflow 
 
 # ..... Outputs ...................................................................................................................
 # Define outputs that are contained on the mesh here:
-typedef     ^                   OutputType           ReKi                SumSpecNoiseSep   {:}{:}{:}     -     -     "Spectra of summed noise level of all blades and blade nodes for each receiver and frequency"     SPL
-typedef     ^                   OutputType           ReKi                OASPL             {:}{:}{:}     -     -     "summed noise level for each blade and blade nodes and receiver "     SPL
-typedef     ^                   OutputType           ReKi                DirectiviOutput   {:}           -     -     " "     SPL
-typedef     ^                   OutputType           ReKi                PtotalFreq        {:}{:}        -      -      "SPL for each observer and frequency"
-
 # Define outputs that are not on this mesh here:
 typedef     ^                   OutputType           ReKi                WriteOutputForPE       {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"
 typedef     ^                   OutputType           ReKi                WriteOutput            {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"
 typedef     ^                   OutputType           ReKi                WriteOutputSep         {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"
-typedef     ^                   OutputType           ReKi                WriteOutputNode        {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"
+typedef     ^                   OutputType           ReKi                WriteOutputNodes       {:}        -     -     "Data to be written to an output file: see WriteOutputHdr for names of each variable"     "see WriteOutputUnt"
