@@ -638,42 +638,46 @@ subroutine AA_UpdateStates( t, n, m, u, p,  xd,  errStat, errMsg )
        do i=1,p%NumBlades
            do j=1,p%NumBlNds
                abs_le_x=m%LE_Location(3,j,i)-p%hubheight
-               IF ((abs_le_x.lt.0).and.(m%LE_Location(2,j,i).lt.0)) THEN
-                   angletemp=180+ATAN(  ABS( m%LE_Location(2,j,i)/abs_le_x )  ) * R2D_D 
-               ELSEIF ((abs_le_x.lt.0).and.(m%LE_Location(2,j,i).gt.0)) THEN
-                   angletemp=180-ATAN(  ABS( m%LE_Location(2,j,i)/abs_le_x )  ) * R2D_D
-               ELSEIF ((abs_le_x.gt.0).and.(m%LE_Location(2,j,i).lt.0)) THEN
-                   angletemp=360-ATAN(  ABS( m%LE_Location(2,j,i)/abs_le_x )  ) * R2D_D 
-               ELSEIF ((abs_le_x.gt.0).and.(m%LE_Location(2,j,i).gt.0)) THEN
-                   angletemp=ATAN(   m%LE_Location(2,j,i)/abs_le_x  ) * R2D_D
-               ELSE
-                   CALL WrScr( 'problem in angletemp Aeroacoustics module' )
-               ENDIF
-               !abs_le_x=ABS(abs_le_x)
+               
+               if (EqualRealNos(abs_le_x, 0.0_ReKi)) then
+                  angletemp = 0.0_ReKi
+               else
+                  angletemp = ATAN2(m%LE_Location(2,j,i), abs_le_x) * R2D_D
+               end if
+
+               k_minus1 = 0
                do k=1,size(p%rotorregionlimitsrad)
                    IF (p%BlSpn(j,i)-p%rotorregionlimitsrad(k).lt.0) THEN ! it means location is in the k-1 region
                        !print*, abs_le_x,p%rotorregionlimitsrad(k),k-1
-                       GOTO 4758
+                       k_minus1 = k - 1
+                       exit ! exit "k" do loop
                    ENDIF
                enddo
-               4758  do rco=1,size(p%rotorregionlimitsalph)
+               k_minus1 = MAX(1,k_minus1)
+               
+               rco_minus1 = 0
+               do rco=1,size(p%rotorregionlimitsalph)
                    IF (angletemp-p%rotorregionlimitsalph(rco).lt.0) THEN ! it means location is in the k-1 region
-                       GOTO 9815
+                       rco_minus1 = rco - 1
+                       exit ! exit "rco" do loop
                    ENDIF
                enddo
-               9815 xd%allregcounter(k-1,rco-1)=CEILING(xd%allregcounter(k-1,rco-1)+1.0_Reki)    ! increase the sample amount in that specific 5 meter height vertical region
+               rco_minus1 = MAX(1,rco_minus1) ! make sure it didn't 
+               
+               xd%allregcounter(k_minus1,rco_minus1) = CEILING(xd%allregcounter(k_minus1,rco_minus1) + 1.0_Reki)    ! increase the sample amount in that specific 5 meter height vertical region
+               
                tempsingle         = sqrt( u%Inflow(1,j,i)**2+u%Inflow(2,j,i)**2+u%Inflow(3,j,i)**2 )  ! 
                ! with storage region dependent moving average and TI
-               IF  (INT(xd%allregcounter(k-1,rco-1)) .lt. (size(xd%RegVxStor,1)+1)) THEN
-                   xd%RegVxStor(INT(xd%allregcounter(k-1,rco-1)),k-1,rco-1)=tempsingle
+               IF  (INT(xd%allregcounter(k_minus1,rco_minus1)) .lt. (size(xd%RegVxStor,1)+1)) THEN
+                   xd%RegVxStor(INT(xd%allregcounter(k_minus1,rco_minus1)),k_minus1,rco_minus1)=tempsingle
                    xd%TIVx(j,i)       =  0
-                   xd%RegionTIDelete(k-1,rco-1)=0
+                   xd%RegionTIDelete(k_minus1,rco_minus1)=0
                ELSE
-                   xd%RegVxStor((mod(INT(xd%allregcounter(k-1,rco-1))-size(xd%RegVxStor,1),size(xd%RegVxStor,1)))+1,k-1,rco-1)=tempsingle
-                   tempmean=SUM(xd%RegVxStor(:,k-1,rco-1))
+                   xd%RegVxStor((mod(INT(xd%allregcounter(k_minus1,rco_minus1))-size(xd%RegVxStor,1),size(xd%RegVxStor,1)))+1,k_minus1,rco_minus1)=tempsingle
+                   tempmean=SUM(xd%RegVxStor(:,k_minus1,rco_minus1))
                    tempmean=tempmean/size(xd%RegVxStor,1)
-                   xd%RegionTIDelete(k-1,rco-1)=SQRT((SUM((xd%RegVxStor(:,k-1,rco-1)-tempmean)**2)) /  size(xd%RegVxStor,1) )
-                   xd%TIVx(j,i)       =  xd%RegionTIDelete(k-1,rco-1) ! only the fluctuation 
+                   xd%RegionTIDelete(k_minus1,rco_minus1)=SQRT((SUM((xd%RegVxStor(:,k_minus1,rco_minus1)-tempmean)**2)) /  size(xd%RegVxStor,1) )
+                   xd%TIVx(j,i)       =  xd%RegionTIDelete(k_minus1,rco_minus1) ! only the fluctuation 
                ENDIF
            enddo
        enddo
