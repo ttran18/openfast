@@ -1676,13 +1676,15 @@ subroutine AD_End( u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       
       else
          
-         do iR = 1, SIZE(p%rotors)
+         if (allocated(p%rotors)) then
+            do iR = 1, SIZE(p%rotors)
 
-            if (p%rotors(iR)%CompAA) then
-               call AA_End( m%rotors(iR)%AA_u, p%rotors(iR)%AA,  x%rotors(iR)%AA, xd%rotors(iR)%AA, z%rotors(iR)%AA, OtherState%rotors(iR)%AA, m%rotors(iR)%AA_y, m%rotors(iR)%AA, ErrStat, ErrMsg )
-            end if
+               if (p%rotors(iR)%CompAA) then
+                  call AA_End( m%rotors(iR)%AA_u, p%rotors(iR)%AA,  x%rotors(iR)%AA, xd%rotors(iR)%AA, z%rotors(iR)%AA, OtherState%rotors(iR)%AA, m%rotors(iR)%AA_y, m%rotors(iR)%AA, ErrStat, ErrMsg )
+               end if
 
-         enddo
+            enddo
+         end if
          
       end if
       
@@ -2225,8 +2227,6 @@ subroutine RotWriteOutputs( t, u, RotInflow, p, p_AD, x, xd, z, OtherState, y, m
    
    i = p%NumOuts
    if (p%AA%numOuts > 0) then
-         call AA_CalcOutput(t, m%AA_u, p%AA, x%AA, xd%AA,  z%AA, OtherState%AA,  m%AA_y, m%AA, errStat2, errMsg2)
-      
       do j=1,p%AA%numOutsAll(1)
          i = i + 1
          y%WriteOutput(i) = m%AA_y%WriteOutput(j)
