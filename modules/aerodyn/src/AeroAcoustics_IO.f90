@@ -580,14 +580,9 @@ contains
       INTEGER(IntKi), intent(in)  :: IdxNode                          ! Counter to the blade node we ae on
       CHARACTER(16)               :: ChanPrefix                       ! Name prefix (AeroB#_Z######y_)
     
-#ifdef OUTPUT_CHANNEL_NAMES_WITH_NODE_NUMBERS
-            ! Create the name prefix:
-         WRITE (TmpChar,'(I3.3)')  IdxNode         ! 3 digit number
-         ChanPrefix = 'AB' // TRIM(Num2LStr(IdxBlade)) // 'N' // TRIM(TmpChar)
-#else
-         WRITE (TmpChar,'(I6.6)') NINT( p%BlSpn(IdxNode,IdxBlade) * 1000.0_ReKi) !millimeters
-         ChanPrefix = 'AeroB' // TRIM(Num2LStr(IdxBlade)) // '_Z' // TRIM(TmpChar) // '_'
-#endif    
+         ! Create the name prefix:
+      WRITE (TmpChar,'(I3.3)')  IdxNode         ! 3 digit number
+      ChanPrefix = 'AB' // TRIM(Num2LStr(IdxBlade)) // 'N' // TRIM(TmpChar)
     end function
 
     logical function Failed()
