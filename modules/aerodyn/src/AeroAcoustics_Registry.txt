@@ -65,9 +65,7 @@ typedef     ^                   AA_InputFile         Logical             ROUND  
 typedef     ^                   AA_InputFile         ReKi                ALPRAT           -     -     -     "TIP LIFT CURVE SLOPE"     -
 typedef     ^                   AA_InputFile         IntKi               AA_Bl_Prcntge    -     -     -     "see the AeroAcoustics input file for description  "     -
 typedef     ^                   AA_InputFile         IntKi               NrObsLoc         -     -     -     "Number of observer locations "     -
-typedef     ^                   AA_InputFile         ReKi                ObsX            {:}    -     -     "Observer location in tower-base coordinate X horizontal"     m
-typedef     ^                   AA_InputFile         ReKi                ObsY            {:}    -     -     "Observer location in tower-base coordinate Y lateral"          m
-typedef     ^                   AA_InputFile         ReKi                ObsZ            {:}    -     -     "Observer location in tower-base coordinate Z vertical"          m
+typedef     ^                   AA_InputFile         ReKi                ObsXYZ        {:}{:}    -     -     "Observer location in tower-base coordinate (X-Y-Z)"     m
 typedef     ^                   AA_InputFile         AA_BladePropsType   BladeProps      {:}    -     -     "blade property information from blade input files"     -
 typedef     ^                   AA_InputFile         IntKi               NrOutFile        -     -     -     "Nr of output files"     -
 typedef     ^                   AA_InputFile         CHARACTER(1024)     AAoutfile       {4}    -     -     "AAoutfile for writing output files"     -
@@ -95,7 +93,6 @@ typedef     ^                   ContinuousStateType  SiKi                DummyCo
 # Define discrete (nondifferentiable) states here:
 typedef     ^                   DiscreteStateType    ReKi                TIVx          {:}{:} -     -     "Vx St. deviat"        -
 typedef     ^                   DiscreteStateType    ReKi                MeanVxVyVz        {:}{:} -     -     "Vrel Cumu. Mean"        -
-typedef     ^                   DiscreteStateType    ReKi                allregcounter      {:}{:} -     -     ""        -
 typedef     ^                   DiscreteStateType    ReKi                RegVxStor       {:}{:}{:} -     -     "VxVyVz Store for fft or TI - dissipation"        -
 typedef     ^                   DiscreteStateType    ReKi                RegionTIDelete         {:}{:} -     -     ""        -
 #
@@ -103,7 +100,7 @@ typedef     ^                   DiscreteStateType    ReKi                RegionT
 typedef     ^                   ConstraintStateType  SiKi                DummyConstrState -     -     -     "Remove this variable if you have  states"        -
 #                                                                                          
 # Define "other" states here:                                                             
-typedef     ^                   OtherStateType       SiKi                DummyOtherState  -     -     -     "Remove this variable if you have  states"        -
+typedef     ^                   OtherStateType       IntKi               allregcounter      {:}{:} -     -     ""        -
 #
 # Define misc/optimization variables (any data that are not considered actual states) here:
 ##typedef   ^                   MiscVarType          ReKi                DisturbedInflow        {:}{:}{:}     -     -     "InflowOnBlade values modified by tower influence"     m/s
@@ -120,7 +117,6 @@ typedef     ^                   MiscVarType          ReKi                SPLLBL 
 typedef     ^                   MiscVarType          ReKi                SPLP                   {:}           -     -     "C"     -
 typedef     ^                   MiscVarType          ReKi                SPLS                   {:}           -     -     "C"     -
 typedef     ^                   MiscVarType          ReKi                SPLALPH                {:}           -     -     "C"     -
-typedef     ^                   MiscVarType          ReKi                SPLTBL                 {:}           -     -     "C"     -
 typedef     ^                   MiscVarType          ReKi                SPLTIP                 {:}           -     -     "C"     -
 typedef     ^                   MiscVarType          ReKi                SPLTI                  {:}           -     -     "C"     -
 typedef     ^                   MiscVarType          ReKi                SPLTIGui               {:}           -     -     "C"     -
@@ -167,13 +163,9 @@ typedef     ^                   ParameterType        IntKi               NrObsLo
 typedef     ^                   ParameterType        Logical             aweightflag             -      -     -     " "     -
 typedef     ^                   ParameterType        Logical             TxtFileOutput           -      -     -     " "     -
 typedef     ^                   ParameterType        DBKi                AAStart                -     -     -     "Time after which to calculate AA"     s
-typedef     ^                   ParameterType        ReKi                ObsX                   {:}     -     -     "Observer location in tower-base coordinate X horizontal"     m
-typedef     ^                   ParameterType        ReKi                ObsY                   {:}     -     -     "Observer location in tower-base coordinate Y lateral"          m
-typedef     ^                   ParameterType        ReKi                ObsZ                   {:}     -     -     "Observer location in tower-base coordinate Z vertical"          m
+typedef     ^                   ParameterType        ReKi                ObsXYZ              {:}{:}     -     -     "Observer location in tower-base coordinate (X-Y-Z)"     m
 typedef     ^                   ParameterType        ReKi                FreqList               {:}     -     -     "List of Acoustic Frequencies to Calculate"     Hz
 typedef     ^                   ParameterType        ReKi                Aweight               {:}     -     -     "List of Acoustic Frequencies a weighting"     dB
-typedef     ^                   ParameterType        ReKi                Fsample                 -     -      -     "Sampling Frequency 1/delta(t) - 1/(simulation time step)"     Hz
-typedef     ^                   ParameterType        IntKi               total_sample            -      -     -     "Total FFT Sample amount for dissipation calculation"     -
 typedef     ^                   ParameterType        IntKi               total_sampleTI            -      -     -     "Total FFT Sample amount for dissipation calculation"     -
 typedef     ^                   ParameterType        IntKi               AA_Bl_Prcntge           -      -     -     "The Percentage of the Blade which the noise is calculated"     %
 typedef     ^                   ParameterType        IntKi               startnode               -      -     -     "Corersponding node to the noise calculation percentage of the blade"     -

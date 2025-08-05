@@ -178,22 +178,15 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
     END IF
 
     ! DT_AA - Time interval for aerodynamic calculations {or default} (s):
-    Line = ""
-    CALL ReadVar( UnIn, InputFile, Line, "DT_AA", "Time interval for aeroacoustics calculations {or default} (s)", ErrStat2, ErrMsg2, UnEc); if (Failed()) return;
-    CALL Conv2UC( Line )
-
-    IF ( INDEX(Line, "DEFAULT" ) /= 1 ) THEN ! If DT_AA is not "default", read it and make sure it is a multiple of DTAero from AeroDyn. Else, just use DTAero
-        READ( Line, *, IOSTAT=IOS) InputFileData%DT_AA
-        CALL CheckIOS ( IOS, InputFile, 'DT_AA', NumType, ErrStat2, ErrMsg2 ); if (Failed()) return;
-
-        IF (abs(InputFileData%DT_AA / Default_DT - NINT(InputFileData%DT_AA / Default_DT)) .gt. 1E-10) THEN
-            CALL SetErrStat(ErrID_Fatal,"The Aeroacoustics input DT_AA must be a multiple of DTAero.", ErrStat, ErrMsg, RoutineName)
-            call Cleanup()
-            return
-        END IF
-    ELSE
-        InputFileData%DT_AA = Default_DT
+    CALL ReadVarWDefault( UnIn, InputFile, InputFileData%DT_AA, "DT_AA", "Time interval for aeroacoustics calculations {or default} (s)", Default_DT, ErrStat2, ErrMsg2, UnEc )
+    if (Failed()) return;
+    
+    IF (.NOT. EqualRealNos( InputFileData%DT_AA, NINT(InputFileData%DT_AA / Default_DT)*Default_DT ) ) THEN
+       CALL SetErrStat(ErrID_Fatal,"The Aeroacoustics input DT_AA must be a multiple of DTAero.", ErrStat, ErrMsg, RoutineName)
+       call Cleanup()
+       return
     END IF
+    
 
     CALL ReadVar(UnIn,InputFile,InputFileData%AAStart      ,"AAStart"      ,"" ,ErrStat2,ErrMsg2,UnEc); if (Failed()) return;
     CALL ReadVar(UnIn,InputFile,InputFileData%AA_Bl_Prcntge,"BldPrcnt"     ,"-",ErrStat2,ErrMsg2,UnEc); if (Failed()) return;
@@ -232,14 +225,9 @@ SUBROUTINE ReadPrimaryFile( InputFile, InputFileData, Default_DT, OutFileRoot, U
     CALL ReadCom( UnIn2, ObserverFile, ' Header', ErrStat2, ErrMsg2, UnEc ); if (Failed()) return;
 
     ! Observer location in tower-base coordinate  (m):
-    CALL AllocAry( InputFileData%ObsX,InputFileData%NrObsLoc, 'ObsX', ErrStat2, ErrMsg2); if (Failed()) return;
-    CALL AllocAry( InputFileData%ObsY,InputFileData%NrObsLoc, 'ObsY', ErrStat2, ErrMsg2); if (Failed()) return;
-    CALL AllocAry( InputFileData%ObsZ,InputFileData%NrObsLoc, 'ObsZ', ErrStat2, ErrMsg2); if (Failed()) return;
+    CALL AllocAry( InputFileData%ObsXYZ,3,InputFileData%NrObsLoc, 'ObsX', ErrStat2, ErrMsg2); if (Failed()) return;
     DO cou=1,InputFileData%NrObsLoc
-        CALL ReadAry( UnIn2, ObserverFile, TmpArray, SIZE(TmpArray), 'Observer Locations Line '//trim(Num2LStr(cou)), 'Observer Locations', ErrStat2, ErrMsg2, UnEc); if (Failed()) return;
-        InputFileData%ObsX(cou) = TmpArray(1)
-        InputFileData%ObsY(cou) = TmpArray(2)
-        InputFileData%ObsZ(cou) = TmpArray(3)
+        CALL ReadAry( UnIn2, ObserverFile, InputFileData%ObsXYZ(:,cou), SIZE(TmpArray), 'Observer Locations Line '//trim(Num2LStr(cou)), 'Observer Locations', ErrStat2, ErrMsg2, UnEc); if (Failed()) return;
     ENDDO
     CLOSE ( UnIn2 )
     UnIn2 = -1

@@ -255,7 +255,6 @@ subroutine AD_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
       ! Local variables
    integer(IntKi)                              :: i,k           ! loop counter
    integer(IntKi)                              :: iR            ! loop on rotors
-   integer(IntKi)                              :: nNodesVelRot  ! number of nodes associated with the rotor that need wind velocity (for CFD coupling)
    type(AA_InitOutputType)                     :: AA_InitOut    ! Output for initialization routine
    
    integer(IntKi)                              :: errStat2      ! temporary error status of the operation
@@ -693,7 +692,7 @@ subroutine Init_MiscVars(m, p, p_AD, u, y, errStat, errMsg)
 
 
       ! Local variables
-   integer(intKi)                               :: i, j, k
+   integer(intKi)                               :: j, k
    integer(intKi)                               :: ErrStat2          ! temporary Error status
    character(ErrMsgLen)                         :: ErrMsg2           ! temporary Error message
    character(*), parameter                      :: RoutineName = 'Init_MiscVars'
@@ -1800,7 +1799,7 @@ subroutine AD_UpdateStates( t, n, u, utimes, p, x, xd, z, OtherState, m, errStat
             call SetInputsForAA(p%rotors(iR), u(1)%rotors(iR), m%Inflow(1)%RotInflow(iR), m%rotors(iR), errStat2, errMsg2)  
             if (Failed()) return
 
-            call AA_UpdateStates(t,  n, m%rotors(iR)%AA, m%rotors(iR)%AA_u, p%rotors(iR)%AA, xd%rotors(iR)%AA,  errStat2, errMsg2)
+            call AA_UpdateStates(t,  n, m%rotors(iR)%AA, m%rotors(iR)%AA_u, p%rotors(iR)%AA, xd%rotors(iR)%AA, OtherState%rotors(iR)%AA, errStat2, errMsg2)
             if (Failed()) return
          end if       
       enddo
@@ -1849,10 +1848,9 @@ subroutine AD_CalcWind(t, u, FLowField, p, o, Inflow, ErrStat, ErrMsg)
    
    integer(intKi)                               :: ErrStat2
    character(ErrMsgLen)                         :: ErrMsg2
-   integer(intKi)                               :: StartNode, iWT, k
+   integer(intKi)                               :: StartNode, iWT
    real(ReKi)                                   :: PosOffset(3)
    real(ReKi), allocatable                      :: NoAcc(:,:)
-   type(RotInflowType), pointer                 :: RotInflow   ! pointer to shorten names
 
    ErrStat = ErrID_None
    ErrMsg = ""
@@ -2926,19 +2924,15 @@ subroutine SetSectAvgInflow(t, p, p_AD, u, RotInflow, m, errStat, errMsg)
    integer(IntKi),               intent(  out)  :: errStat                !< Error status of the operation
    character(*),                 intent(  out)  :: errMsg                 !< Error message if ErrStat /= ErrID_None
    ! local variables             
-   real(R8Ki)              :: R_li        !< 
    real(ReKi)              :: x_hat_disk(3) !< unit vector normal to disk along hub x axis
    real(ReKi)              :: r_A(3)      !< Vector from global origin to blade node
    real(ReKi)              :: r_H(3)      !< Vector from global origin to hub center
-   real(ReKi)              :: r_S(3)      !< Vector from global origin to point in sector
-   real(ReKi)              :: rHS(3)      !< Vector from rotor center to point in sector
    real(ReKi)              :: rHA(3)      !< Vector from rotor center to blade node
    real(ReKi)              :: rHA_perp(3) !< Component of rHA perpendicular to x_hat_disk
    real(ReKi)              :: rHA_para(3) !< Component of rHA paralel to x_hat_disk
    real(ReKi)              :: rHA_perp_n  !< Norm of rHA_perp
    real(ReKi)              :: e_r(3)      !< Polar unit vector along rHA_perp
    real(ReKi)              :: e_t(3)      !< Polar unit vector perpendicular to rHA_perp ("e_theta")
-   real(ReKi)              :: temp_norm
    real(ReKi)              :: psi         !< Azimuthal offset in the current sector, runs from -psi_bwd to psi_fwd
    real(ReKi)              :: dpsi        !< Azimuthal increment
    real(ReKi), allocatable :: SectPos(:,:)!< Points used to define a given sector (for a given blade node A)
@@ -3065,7 +3059,6 @@ subroutine SetInputsForBEMT(p, p_AD, u, RotInflow, m, indx, errStat, errMsg)
    real(R8Ki)                              :: y_hat_disk(3)
    real(R8Ki)                              :: z_hat_disk(3)
    real(ReKi)                              :: tmp(3)
-   real(ReKi)                              :: tmp_sz, tmp_sz_y
    real(ReKi)                              :: rmax
    real(R8Ki)                              :: thetaBladeNds(p%NumBlNds,p%NumBlades)
    real(R8Ki)                              :: Azimuth(p%NumBlades)
@@ -4957,7 +4950,6 @@ SUBROUTINE TFin_CalcOutput(p, p_AD, u, RotInflow, m, y, ErrStat, ErrMsg )
    INTEGER(IntKi),               INTENT(  OUT)  :: ErrStat     !< Error status of the operation
    CHARACTER(*),                 INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
 
-   real(ReKi)              :: PRef(3)           ! ref point
    real(ReKi)              :: V_rel_tf(3)       ! relative wind speed in tailfin coordinate system
    real(ReKi)              :: V_rel_orth2       ! square norm of V_rel_tf in orthogonal plane
    real(ReKi)              :: V_rel(3)          ! relative wind speed
@@ -6993,7 +6985,7 @@ SUBROUTINE Init_Jacobian_u( InputFileData, p, p_AD, u, InitOut, ErrStat, ErrMsg)
    CHARACTER(*)                      , INTENT(  OUT) :: ErrMsg                !< Error message if ErrStat /= ErrID_None
 
       ! local variables:
-   INTEGER(IntKi)                :: i, j, k, index, indexNames, index_last, nu, i_meshField
+   INTEGER(IntKi)                :: i, k, index, indexNames, index_last, nu, i_meshField
    INTEGER(IntKi)                :: NumFieldsForLinearization
    REAL(ReKi)                    :: perturb, perturb_t, perturb_b(AD_MaxBl_Out)
    LOGICAL                       :: FieldMask(FIELDMASK_SIZE)

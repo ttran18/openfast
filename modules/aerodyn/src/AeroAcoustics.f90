@@ -92,7 +92,6 @@ subroutine AA_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
    ! To get rid of a compiler warning.
    x%DummyContState           = 0.0_SiKi
    z%DummyConstrState         = 0.0_SiKi
-   OtherState%DummyOtherState = 0.0_SiKi
 
    !bjj: note that we haven't validated p%NumBlades before using it below!
    p%NumBlades = InitInp%NumBlades ! need this before reading the AD input file so that we know how many blade files to read
@@ -118,7 +117,7 @@ subroutine AA_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut
 
    ! Initialize states and misc vars
    call Init_MiscVars(m, p, u, errStat2, errMsg2); if(Failed()) return
-   call Init_States(xd, p,  errStat2, errMsg2); if(Failed()) return
+   call Init_States(xd, OtherState, p,  errStat2, errMsg2); if(Failed()) return
 
    ! Define write outputs here (must initialize AFTER Init_MiscVars)
    call Init_y(y, m, u, p, errStat2, errMsg2); if(Failed()) return
@@ -162,8 +161,6 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     !!Assign input fiel data to parameters
     p%DT               = InputFileData%DT_AA         ! seconds
     p%AA_Bl_Prcntge    = InputFileData%AA_Bl_Prcntge  ! %
-    p%fsample          = 1/p%DT     ! Hz
-    p%total_sample     = 2**( ceiling(log(1*p%fsample)/log(2.0d0)))! 1 stands for the 1 seconds. Every 1 second Vrel spectra will be calculated for the dissipation calculation (change if more needed & recompile )
     p%total_sampleTI   = 5/p%DT  ! 10 seconds for TI sampling
     p%AAStart          = InputFileData%AAStart
     p%IBLUNT           = InputFileData%IBLUNT
@@ -243,9 +240,7 @@ subroutine SetParameters( InitInp, InputFileData, p, ErrStat, ErrMsg )
     enddo
 
     ! Observer Locations
-    call MOVE_ALLOC(InputFileData%ObsX,p%ObsX)
-    call MOVE_ALLOC(InputFileData%ObsY,p%ObsY)
-    call MOVE_ALLOC(InputFileData%ObsZ,p%ObsZ)
+    call MOVE_ALLOC(InputFileData%ObsXYZ,p%ObsXYZ)
 
     ! 
     call AllocAry(p%BlAFID,      p%NumBlNds, p%numBlades, 'p%BlAFID' , ErrStat2, ErrMsg2); if(Failed()) return
@@ -530,7 +525,6 @@ subroutine Init_MiscVars(m, p, u, errStat, errMsg)
     call AllocAry(m%SPLP        , size(p%FreqList), 'SPLP'      , errStat2, errMsg2); if(Failed()) return
     call AllocAry(m%SPLS        , size(p%FreqList), 'SPLS'      , errStat2, errMsg2); if(Failed()) return
     call AllocAry(m%SPLALPH     , size(p%FreqList), 'SPLALPH'   , errStat2, errMsg2); if(Failed()) return
-    call AllocAry(m%SPLTBL      , size(p%FreqList), 'SPLTBL'    , errStat2, errMsg2); if(Failed()) return
     call AllocAry(m%SPLBLUNT    , size(p%FreqList), 'SPLBLUNT'  , errStat2, errMsg2); if(Failed()) return
     call AllocAry(m%SPLTIP      , size(p%FreqList), 'SPLTIP'    , errStat2, errMsg2); if(Failed()) return
     call AllocAry(m%SPLTI       , size(p%FreqList), 'SPLTI'     , errStat2, errMsg2); if(Failed()) return
@@ -551,14 +545,7 @@ subroutine Init_MiscVars(m, p, u, errStat, errMsg)
     m%SpanAngleTE  = 0.0_ReKi
     m%rTEtoObserve = 0.0_ReKi
     m%rLEtoObserve = 0.0_ReKi
-    m%SPLLBL       = 0.0_ReKi
 
-    m%SPLS         = 0.0_ReKi
-    m%SPLALPH      = 0.0_ReKi
-    m%SPLTBL       = 0.0_ReKi
-    m%SPLBLUNT     = 0.0_ReKi
-    m%SPLTIP       = 0.0_ReKi
-    m%SPLTI        = 0.0_ReKi
     m%SPLTIGui     = 0.0_ReKi
     m%CfVar        = 0.0_ReKi
     m%d99Var       = 0.0_ReKi
@@ -573,11 +560,12 @@ contains
 end subroutine Init_MiscVars
 !----------------------------------------------------------------------------------------------------------------------------------   
 !> This routine initializes (allocates) the misc variables for use during the simulation.
-subroutine Init_states(xd, p, errStat, errMsg)
-    type(AA_DiscreteStateType),    intent(inout)  :: xd               !
-    type(AA_ParameterType),        intent(in   )  :: p                !< Parameters
-    integer(IntKi),                intent(  out)  :: errStat          !< Error status of the operation
-    character(*),                  intent(  out)  :: errMsg           !< Error message if ErrStat /= ErrID_None
+subroutine Init_states(xd, OtherState, p, errStat, errMsg)
+    type(AA_DiscreteStateType),   intent(inout)  :: xd               !
+    type(AA_OtherStateType),      intent(inout)  :: OtherState       !< Initial other states
+    type(AA_ParameterType),       intent(in   )  :: p                !< Parameters
+    integer(IntKi),               intent(  out)  :: errStat          !< Error status of the operation
+    character(*),                 intent(  out)  :: errMsg           !< Error message if ErrStat /= ErrID_None
     ! Local variables
     integer(intKi)                               :: ErrStat2          ! temporary Error status
     character(ErrMsgLen)                         :: ErrMsg2           ! temporary Error message
@@ -590,15 +578,16 @@ subroutine Init_states(xd, p, errStat, errMsg)
     call AllocAry(xd%MeanVxVyVz, p%NumBlNds, p%numBlades, 'xd%MeanVxVyVz', ErrStat2, ErrMsg2); if(Failed()) return
     call AllocAry(xd%TIVx,       p%NumBlNds, p%numBlades, 'xd%TIVx'      , ErrStat2, ErrMsg2); if(Failed()) return
 
-    call AllocAry(xd%RegVxStor,     p%total_sampleTI,              size(p%rotorregionlimitsrad )-1,size(p%rotorregionlimitsalph)-1,'xd%Vxst',ErrStat2,ErrMsg2); if(Failed()) return
-    call AllocAry(xd%allregcounter ,size(p%rotorregionlimitsrad)-1,size(p%rotorregionlimitsalph)-1,                      'xd%allregcounter', ErrStat2,ErrMsg2); if(Failed()) return
-    call AllocAry(xd%RegionTIDelete,size(p%rotorregionlimitsrad)-1,size(p%rotorregionlimitsalph)-1,                      'xd%RegionTIDelete',ErrStat2,ErrMsg2); if(Failed()) return
+    call AllocAry(xd%RegVxStor,             p%total_sampleTI, size(p%rotorregionlimitsrad)-1,size(p%rotorregionlimitsalph)-1,'xd%Vxst',                  ErrStat2,ErrMsg2); if(Failed()) return
+    call AllocAry(xd%RegionTIDelete,                          size(p%rotorregionlimitsrad)-1,size(p%rotorregionlimitsalph)-1,'xd%RegionTIDelete',        ErrStat2,ErrMsg2); if(Failed()) return
+    call AllocAry(OtherState%allregcounter ,                  size(p%rotorregionlimitsrad)-1,size(p%rotorregionlimitsalph)-1,'OtherState%allregcounter', ErrStat2,ErrMsg2); if(Failed()) return
     
     xd%MeanVxVyVz = 0.0_ReKi
     xd%TIVx       = 0.0_ReKi
-    xd%allregcounter  = 2.0_Reki
     xd%RegionTIDelete = 0.0_ReKi
     xd%RegVxStor      = 0.0_reki
+    
+    OtherState%allregcounter  = 2
 
 contains
     logical function Failed()
@@ -607,12 +596,13 @@ contains
     end function Failed
 end subroutine Init_states
 !----------------------------------------------------------------------------------------------------------------------------------
-subroutine AA_UpdateStates( t, n, m, u, p,  xd,  errStat, errMsg )
+subroutine AA_UpdateStates( t, n, m, u, p,  xd, OtherState, errStat, errMsg )
    real(DbKi),                     intent(in   ) :: t          !< Current simulation time in seconds
    integer(IntKi),                 intent(in   ) :: n          !< Current simulation time step n = 0,1,...
    type(AA_InputType),             intent(in   ) :: u          !< Inputs at utimes (out only for mesh record-keeping in ExtrapInterp routine)
    TYPE(AA_ParameterType),         INTENT(IN   ) :: p          !< Parameters
    type(AA_DiscreteStateType),     intent(inout) :: xd         !< Input: Discrete states at t;
+    type(AA_OtherStateType),       intent(inout) :: OtherState !< Other states (integers)
    type(AA_MiscVarType),           intent(inout) :: m          !< misc/optimization data 
    integer(IntKi),                 intent(  out) :: errStat    !< Error status of the operation
    character(*),                   intent(  out) :: errMsg     !< Error message if ErrStat /= ErrID_None
@@ -636,6 +626,8 @@ subroutine AA_UpdateStates( t, n, m, u, p,  xd,  errStat, errMsg )
    !   xd%TIVx  = (TEMPSTD / xd%MeanVxVyVz ) ! check inflow noise input for multiplication with 100 or not
 
    IF(   (p%TICalcMeth.eq.2) ) THEN
+       call Calc_LE_Location_Array(p,m,u) ! sets m%LE_Location(:,:,:)
+   
        do i=1,p%NumBlades
            do j=1,p%NumBlNds
                abs_le_x=m%LE_Location(3,j,i)-p%hubheight
@@ -665,16 +657,16 @@ subroutine AA_UpdateStates( t, n, m, u, p,  xd,  errStat, errMsg )
                enddo
                rco_minus1 = MAX(1,rco_minus1) ! make sure it didn't 
                
-               xd%allregcounter(k_minus1,rco_minus1) = CEILING(xd%allregcounter(k_minus1,rco_minus1) + 1.0_Reki)    ! increase the sample amount in that specific 5 meter height vertical region
+               OtherState%allregcounter(k_minus1,rco_minus1) = OtherState%allregcounter(k_minus1,rco_minus1) + 1    ! increase the sample amount in that specific 5 meter height vertical region
                
                tempsingle         = sqrt( u%Inflow(1,j,i)**2+u%Inflow(2,j,i)**2+u%Inflow(3,j,i)**2 )  ! 
                ! with storage region dependent moving average and TI
-               IF  (INT(xd%allregcounter(k_minus1,rco_minus1)) .lt. (size(xd%RegVxStor,1)+1)) THEN
-                   xd%RegVxStor(INT(xd%allregcounter(k_minus1,rco_minus1)),k_minus1,rco_minus1)=tempsingle
+               IF  ( OtherState%allregcounter(k_minus1,rco_minus1) .lt. size(xd%RegVxStor,1)+1 ) THEN
+                   xd%RegVxStor(OtherState%allregcounter(k_minus1,rco_minus1),k_minus1,rco_minus1)=tempsingle
                    xd%TIVx(j,i)       =  0
                    xd%RegionTIDelete(k_minus1,rco_minus1)=0
                ELSE
-                   xd%RegVxStor((mod(INT(xd%allregcounter(k_minus1,rco_minus1))-size(xd%RegVxStor,1),size(xd%RegVxStor,1)))+1,k_minus1,rco_minus1)=tempsingle
+                   xd%RegVxStor((mod( OtherState%allregcounter(k_minus1,rco_minus1) - size(xd%RegVxStor,1), size(xd%RegVxStor,1)))+1,k_minus1,rco_minus1)=tempsingle
                    tempmean=SUM(xd%RegVxStor(:,k_minus1,rco_minus1))
                    tempmean=tempmean/size(xd%RegVxStor,1)
                    xd%RegionTIDelete(k_minus1,rco_minus1)=SQRT((SUM((xd%RegVxStor(:,k_minus1,rco_minus1)-tempmean)**2)) /  size(xd%RegVxStor,1) )
@@ -769,11 +761,13 @@ subroutine AA_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg)
     ErrMsg  = ""
 
     ! assume integer divide is possible
-    call CalcObserve(t,p,m,u,xd,errStat2, errMsg2)
-    call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
     
     IF (t >= p%AAStart) THEN
-        IF (mod(t + 1E-10,p%DT) .lt. 1E-6) THEN
+       
+        IF (.NOT. AA_OutputToSeparateFile .or. mod(t + 1E-10,p%DT) .lt. 1E-6) THEN !bjj: should check NINT(t/p%DT)?
+            call CalcObserve(p,m,u,xd,errStat2, errMsg2)
+            call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
+           
             call CalcAeroAcousticsOutput(u,p,m,xd,y,errStat2,errMsg2)
             call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
 
@@ -785,13 +779,40 @@ subroutine AA_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg)
                call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName); if (ErrStat >= AbortErrLev) return
             end if
         ENDIF
+
     ENDIF
     
 end subroutine AA_CalcOutput
 !----------------------------------------------------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------------------------------------------------!
-SUBROUTINE CalcObserve(t,p,m,u,xd,errStat,errMsg)
-    REAL(DbKi),                          INTENT(IN   )  :: t      !< Current simulation time in seconds
+SUBROUTINE Calc_LE_Location_Array(p,m,u)
+    TYPE(AA_ParameterType),              intent(in   ) :: p       !< Parameters
+    TYPE(AA_InputType),                  intent(in   ) :: u       !< NN Inputs at Time
+    TYPE(AA_MiscVarType),                intent(inout) :: m       !< misc/optimization data (not defined in submodules)
+    ! Local variables.
+    INTEGER(intKi) :: I                           ! I A generic index for DO loops.
+    INTEGER(intKi) :: J                           ! J A generic index for DO loops.
+
+
+    ! Loop through the blades
+    DO I = 1,p%numBlades
+        ! Loop through the nodes along blade span
+        DO J = 1,p%NumBlNds
+            ! Transpose the rotational vector GlobalToLocal to obtain the rotation LocalToGlobal
+            ! LocalToGlobal  = TRANSPOSE(u%RotGtoL(:,:,J,I))
+
+            ! Rotate the coordinates of leading and trailing edge from the local reference system to the global. Then add the coordinates of the aerodynamic center in the global coordinate system
+            ! The global coordinate system is located on the ground, has x pointing downwind, y pointing laterally, and z pointing vertically upwards
+
+            !m%LE_Location(:,J,I) = RLEObservereal = MATMUL(LocalToGlobal, p%AFLeCo(:,J,I)) + u%AeroCent_G(:,J,I)
+            m%LE_Location(:,J,I) = MATMUL(p%AFLeCo(:,J,I), u%RotGtoL(:,:,J,I) ) + u%AeroCent_G(:,J,I) ! = because this is a matrix times a vector, we can do the transpose of the actual equation: MATMUL(TRANSPOSE(u%RotGtoL(:,:,J,I)), p%AFLeCo(:,J,I)) + u%AeroCent_G(:,J,I)
+            
+        ENDDO  !J, blade nodes
+    ENDDO  !I , number of blades
+    
+END SUBROUTINE Calc_LE_Location_Array
+!----------------------------------------------------------------------------------------------------------------------------------!
+SUBROUTINE CalcObserve(p,m,u,xd,errStat,errMsg)
     TYPE(AA_DiscreteStateType),          INTENT(IN   ) :: xd      !< discrete state type
     TYPE(AA_ParameterType),              intent(in   ) :: p       !< Parameters
     TYPE(AA_InputType),                  intent(in   ) :: u       !< NN Inputs at Time
@@ -804,10 +825,6 @@ SUBROUTINE CalcObserve(t,p,m,u,xd,errStat,errMsg)
     REAL(ReKi)     :: RTEObserveG (3)             ! Position vector from trailing edge to observer in the coordinate system located at the trailing edge and rotated as the global
     REAL(ReKi)     :: RLEObserveG (3)             ! Position vector from leading edge to observer in the coordinate system located at the leading edge and rotated as the global
     REAL(ReKi)     :: RTEObservereal (3)          ! Location of trailing edge in global coordinate system
-    REAL(ReKi)     :: RLEObservereal (3)          ! Location of leading edge in global coordinate system
-    REAL(ReKi)     :: LocalToGlobal(3,3)          ! Transformation matrix
-    REAL(ReKi)     :: timeLE                      ! Time of sound propagation from leading edge to observer
-    REAL(ReKi)     :: timeTE                      ! Time of sound propagation from trailing edge to observer
     REAL(ReKi)     :: phi_e                       ! Spanwise directivity angle
     REAL(ReKi)     :: theta_e                     ! Chordwise directivity angle 
     INTEGER(intKi) :: I                           ! I A generic index for DO loops.
@@ -819,73 +836,59 @@ SUBROUTINE CalcObserve(t,p,m,u,xd,errStat,errMsg)
 
     ErrStat = ErrID_None
     ErrMsg  = ""
-    ! Loop through the blades
-    DO I = 1,p%numBlades
-        ! Loop through the nodes along blade span
-        DO J = 1,p%NumBlNds
-            ! Transpose the rotational vector GlobalToLocal to obtain the rotation LocalToGlobal
-            LocalToGlobal  = TRANSPOSE(u%RotGtoL(:,:,J,I))
-            ! Rotate the coordinates of leading and trailing edge from the local reference system to the global. Then add the coordinates of the aerodynamic center in the global coordinate system
-            ! The global coordinate system is located on the ground, has x pointing downwind, y pointing laterally, and z pointing vertically upwards
-            RTEObservereal = MATMUL(LocalToGlobal, p%AFTeCo(:,J,I)) + u%AeroCent_G(:,J,I)
-            RLEObservereal = MATMUL(LocalToGlobal, p%AFLeCo(:,J,I)) + u%AeroCent_G(:,J,I)
-            ! Compute the coordinates of the leading edge in the global coordinate system
-            m%LE_Location(1,J,I) = RLEObservereal(1)
-            m%LE_Location(2,J,I) = RLEObservereal(2)
-            m%LE_Location(3,J,I) = RLEObservereal(3)
-            
-            ! If the time step is set to generate AA outputs
-            IF (t >= p%AAStart) THEN
-                IF ( mod(t + 1E-10,p%DT) .lt. 1E-6)  THEN  !bjj: this should be modified to compare integers instead of this interesting math
-                    ! Loop through the observers
-                    DO K = 1,p%NrObsLoc
-                        ! Calculate the position of the observer K in a reference system located at the trailing edge and oriented as the global reference system
-                        RTEObserveG(1)=p%Obsx(K)-RTEObservereal(1)
-                        RTEObserveG(2)=p%Obsy(K)-RTEObservereal(2)
-                        RTEObserveG(3)=p%Obsz(K)-RTEObservereal(3)
-                        ! Calculate the position of the observer K in a reference system located at the leading edge and oriented as the global reference system
-                        RLEObserveG(1)=p%Obsx(K)-RLEObservereal(1)
-                        RLEObserveG(2)=p%Obsy(K)-RLEObservereal(2)
-                        RLEObserveG(3)=p%Obsz(K)-RLEObservereal(3)
-                        ! Rotate back the two reference systems from global to local. 
-                        RTEObserve = MATMUL(u%RotGtoL(:,:,J,I), RTEObserveG)
-                        RLEObserve = MATMUL(u%RotGtoL(:,:,J,I), RLEObserveG)
-
-                        ! Calculate absolute distance between node and observer
-                        m%rTEtoObserve(K,J,I) = max(AA_Epsilon, SQRT (RTEObserve(1)**2+RTEObserve(2)**2+RTEObserve(3)**2) )
-                        m%rLEtoObserve(K,J,I) = max(AA_Epsilon, SQRT (RLEObserve(1)**2+RLEObserve(2)**2+RLEObserve(3)**2) )
-
-                        ! Calculate time of noise propagation to observer
-                        timeTE = m%rTEtoObserve(K,J,I) / p%SpdSound
-                        timeLE = m%rLEtoObserve(K,J,I) / p%SpdSound
-                        
-                        ! The local system has y alinged with the chord, x pointing towards the airfoil suction side, and z aligned with blade span from root towards tip 
-                        ! x ---> z_e
-                        ! y ---> x_e
-                        ! z ---> y_e
-
-                        ! Compute spanwise directivity angle phi for the trailing edge
-                        phi_e = ATAN2 (RTEObserve(1) , RTEObserve(3))
-                        m%SpanAngleTE(K,J,I)  = phi_e * R2D
-
-                        ! Compute chordwise directivity angle theta for the trailing edge
-                        theta_e = ATAN2 ((RTEObserve(3) * COS (phi_e) + RTEObserve(1) * SIN (phi_e) ) , RTEObserve(2))
-                        m%ChordAngleTE(K,J,I) = theta_e * R2D
-                        
-                        ! Compute spanwise directivity angle phi  for the leading edge (it's the same angle for the trailing edge)
-                        phi_e = ATAN2 (RLEObserve(1) , RLEObserve(3))
-                        m%SpanAngleLE(K,J,I)  = phi_e * R2D
-
-                        ! Compute chordwise directivity angle theta for the leading edge
-                        theta_e = ATAN2 ((RLEObserve(3) * COS (phi_e) + RLEObserve(1) * SIN (phi_e) ) , RLEObserve(2))
-                        m%ChordAngleLE(K,J,I) = theta_e * R2D
-
-                    ENDDO !K, observers
-                ENDIF !  every Xth time step or so..
-            ENDIF ! only if the time step is more than user input value run this part
-        ENDDO  !J, blade nodes
-    ENDDO  !I , number of blades
+     
+    call Calc_LE_Location_Array(p,m,u) ! sets m%LE_Location(:,:,:)
     
+   ! Loop through the blades
+   DO I = 1,p%numBlades
+      ! Loop through the nodes along blade span
+      DO J = 1,p%NumBlNds
+         ! Rotate the coordinates of leading and trailing edge from the local reference system to the global. Then add the coordinates of the aerodynamic center in the global coordinate system
+         ! The global coordinate system is located on the ground, has x pointing downwind, y pointing laterally, and z pointing vertically upwards
+         RTEObservereal = MATMUL(p%AFTeCo(:,J,I), u%RotGtoL(:,:,J,I)) + u%AeroCent_G(:,J,I) ! Note that with the vector math, this is equivalent to MATMUL(TRANSPOSE(p%AFTeCo(:,J,I)), p%AFTeCo(:,J,I)) + u%AeroCent_G(:,J,I)
+            
+         ! Loop through the observers
+         DO K = 1,p%NrObsLoc
+            
+            RTEObserveG=p%ObsXYZ(:,K)-RTEObservereal            ! Calculate the position of the observer K in a reference system located at the trailing edge and oriented as the global reference system
+            RLEObserveG=p%ObsXYZ(:,K)-m%LE_Location(:,J,I)      ! Calculate the position of the observer K in a reference system located at the leading edge and oriented as the global reference system
+            ! Rotate back the two reference systems from global to local. 
+            RTEObserve = MATMUL(u%RotGtoL(:,:,J,I), RTEObserveG)
+            RLEObserve = MATMUL(u%RotGtoL(:,:,J,I), RLEObserveG)
+
+            ! Calculate absolute distance between node and observer
+            m%rTEtoObserve(K,J,I) = max(AA_Epsilon, TwoNorm(RTEObserve) )
+            m%rLEtoObserve(K,J,I) = max(AA_Epsilon, TwoNorm(RLEObserve) )
+
+            ! Calculate time of noise propagation to observer
+            !timeTE = m%rTEtoObserve(K,J,I) / p%SpdSound
+            !timeLE = m%rLEtoObserve(K,J,I) / p%SpdSound
+                        
+            ! The local system has y alinged with the chord, x pointing towards the airfoil suction side, and z aligned with blade span from root towards tip 
+            ! x ---> z_e
+            ! y ---> x_e
+            ! z ---> y_e
+
+            ! Compute spanwise directivity angle phi for the trailing edge
+            phi_e = ATAN2 (RTEObserve(1) , RTEObserve(3))
+            m%SpanAngleTE(K,J,I)  = phi_e * R2D
+
+            ! Compute chordwise directivity angle theta for the trailing edge
+            theta_e = ATAN2 ((RTEObserve(3) * COS (phi_e) + RTEObserve(1) * SIN (phi_e) ) , RTEObserve(2))
+            m%ChordAngleTE(K,J,I) = theta_e * R2D
+                        
+            ! Compute spanwise directivity angle phi  for the leading edge (it's the same angle for the trailing edge)
+            phi_e = ATAN2 (RLEObserve(1) , RLEObserve(3))
+            m%SpanAngleLE(K,J,I)  = phi_e * R2D
+
+            ! Compute chordwise directivity angle theta for the leading edge
+            theta_e = ATAN2 ((RLEObserve(3) * COS (phi_e) + RLEObserve(1) * SIN (phi_e) ) , RLEObserve(2))
+            m%ChordAngleLE(K,J,I) = theta_e * R2D
+
+         ENDDO !K, observers
+      ENDDO  !J, blade nodes
+   ENDDO  !I , number of blades
+
 END SUBROUTINE CalcObserve
 !----------------------------------------------------------------------------------------------------------------------------------!
 SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
@@ -897,44 +900,27 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
     integer(IntKi),                         INTENT(  OUT)   :: errStat !< Error status of the operation
     character(*),                           INTENT(  OUT)   :: errMsg  !< Error message if ErrStat /= ErrID_None
     ! Local variables.
-    integer(intKi)                :: III                                             !III A generic index for DO loops.
-    integer(intKi)                :: I                                               !I   A generic index for DO loops.
-    integer(intKi)                :: J                                               !J   A generic index for DO loops.
-    integer(intKi)                :: K !,liop,cou ,JTEMP                                   !K   A generic index for DO loops.
-    integer(intKi)                :: oi                                              !K   A generic index for DO loops.
-    REAL(ReKi)                    :: AlphaNoise                                 ! 
-    REAL(ReKi)                    :: UNoise                                     ! 
-    REAL(ReKi)                    :: elementspan                                ! 
+    integer(intKi)                :: III                              ! III A generic index for DO loops (frequency)
+    integer(intKi)                :: I                                ! I   A generic index for DO loops (blade)
+    integer(intKi)                :: J                                ! J   A generic index for DO loops (blade node)
+    integer(intKi)                :: K                                ! K   A generic index for DO loops (NrObsLoc)
+    integer(intKi)                :: oi                               ! oi   A generic index for DO loops (NoiseMechanism)
+    REAL(ReKi)                    :: AlphaNoise                       
+    REAL(ReKi)                    :: AlphaNoise_Deg                   ! 
+    REAL(ReKi)                    :: UNoise                           ! 
+    REAL(ReKi)                    :: elementspan                      ! 
 
-    real(ReKi)                                                 ::  Ptotal
-    real(ReKi)                                                 :: PtotalLBL    
-    real(ReKi)                                                 :: PtotalTBLP   
-    real(ReKi)                                                 :: PtotalTBLS   
-    real(ReKi)                                                 :: PtotalSep    
-    real(ReKi)                                                 :: PtotalTBLAll 
-    real(ReKi)                                                 :: PtotalBlunt  
-    real(ReKi)                                                 :: PtotalTip    
-    real(ReKi)                                                 :: PtotalInflow 
-    real(ReKi)                                                 :: PLBL
-    real(ReKi)                                                 :: PTBLP
-    real(ReKi)                                                 :: PTBLS
-    real(ReKi)                                                 :: PTBLALH
-    real(ReKi)                                                 :: PTip
-    real(ReKi)                                                 :: PTI
-    real(ReKi)                                                 :: PBLNT !,adforma
-    integer(intKi)                                             :: ErrStat2
-    character(ErrMsgLen)                                       :: ErrMsg2
-    character(*), parameter                                    :: RoutineName = 'CalcAeroAcousticsOutput'
-
+    real(ReKi)                    ::  Ptotal
+    character(*), parameter       :: RoutineName = 'CalcAeroAcousticsOutput'
+    
     ErrStat = ErrID_None
     ErrMsg  = ""
 
-    !------------------- Fill arrays with zeros -------------------------!
+    !------------------- Initialize arrays with zeros -------------------------!
    ! values for WriteOutput
    m%OASPL = 0.0_Reki
    m%DirectiviOutput = 0.0_Reki
    m%SumSpecNoiseSep = 0.0_Reki
-   m%PtotalFreq = 0.0_ReKi
    !----------------
    m%SPLLBL=0.0_Reki
    m%SPLP=0.0_Reki
@@ -944,251 +930,133 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
    m%SPLTIP=0.0_Reki
    m%SPLti=0.0_Reki
 
-    !------------------- initialize FFT  -------------------------!
-    !!!CALL InitFFT ( p%total_sample, FFT_Data, ErrStat=ErrStat2 )
-    !!! CALL SetErrStat(ErrStat2, 'Error in InitFFT', ErrStat, ErrMsg, 'CalcAeroAcousticsOutput' )
-    !!!CALL AllocAry( fft_freq,  size(spect_signal)/2-1, 'fft_freq', ErrStat2, ErrMsg2 ) 
-    !!!         CALL SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
-    !!!do liop=1,size(fft_freq)
-    !!!    fft_freq(liop)=p%fsample*liop ! fRequncy x axis
-    !!!    fft_freq(liop)=fft_freq(liop)/size(spect_signal)
-    !!!enddo
 
+   DO I = 1,p%numBlades
+      DO J = p%startnode,p%NumBlNds  ! starts loop from startnode. 
+         !------------------------------!!------------------------------!!------------------------------!!------------------------------!
 
-    DO I = 1,p%numBlades
-        DO J = p%startnode,p%NumBlNds  ! starts loop from startnode. 
+         Unoise =  u%Vrel(J,I) 
+         IF (abs(Unoise) < AA_u_min) then
+            Unoise = SIGN(AA_u_min, Unoise)
+         ENDIF
+            
+         IF (J .EQ. p%NumBlNds) THEN
+            elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2 
+         ELSE
+            elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2    +    (p%BlSpn(J+1,I)-p%BlSpn(J,I))/2  
+         ENDIF
+         AlphaNoise= u%AoANoise(J,I)
+         call MPi2Pi(AlphaNoise) ! make sure this is in an appropriate range [-pi,pi]
+         AlphaNoise_Deg = AlphaNoise * R2D_D ! convert to degrees since that is how this code is set up.
+
+         !--------Read in Boundary Layer Data-------------------------!
+         IF (p%X_BLMethod .EQ. X_BLMethod_Tables) THEN
+            call BL_Param_Interp(p, m, Unoise, AlphaNoise_Deg, p%BlChord(J,I), p%BlAFID(J,I))
+
+            m%d99Var     = m%d99Var*p%BlChord(J,I)
+            m%dstarVar   = m%dstarVar*p%BlChord(J,I)
+         ENDIF
+
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
             !------------------------------!!------------------------------!!------------------------------!!------------------------------!
-            !--------Calculate Spectrum for dissipation calculation-------------------------!
-            !spect_signal=xd%VrelStore(  1:p%total_sample,J,I  )
-            !        CALL ApplyFFT_f( spect_signal, FFT_Data, ErrStat2 )
-            ! IF (ErrStat2 /= ErrID_None ) THEN
-            ! CALL SetErrStat(ErrStat2, 'Error in ApplyFFT .', ErrStat, ErrMsg, 'CalcAeroAcousticsOutput' )
-            ! ENDIF
-            !cou=1
-            !O liop=2,size(spect_signal)-1,2
-            !cou=cou+1
-            !spectra(cou) = spect_signal(liop)*spect_signal(liop) + spect_signal(1+liop)*spect_signal(1+liop)
-            !ENDDO
-            !spectra(1)=spect_signal(1)*spect_signal(1)
-            !spectra=spectra/(size(spectra)*2)
+         DO K = 1,p%NrObsLoc
+            Ptotal = 0.0_ReKi         ! Total Sound Pressure - All (7) mechanisms, All Frequencies
 
-            Unoise =  u%Vrel(J,I) 
-            IF (abs(Unoise) < AA_u_min) then
-               Unoise = SIGN(AA_u_min, Unoise)
+            !--------Laminar Boundary Layer Vortex Shedding Noise----------------------------!
+            IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )    THEN
+               CALL LBLVS(AlphaNoise_Deg,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+                  elementspan,m%rTEtoObserve(K,J,I), p,m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLLBL,p%StallStart(J,I))
+               
+               call TotalContributionFromType(m%SPLLBL,Ptotal,NoiseMech=1)
             ENDIF
             
-            IF (J .EQ. p%NumBlNds) THEN
-                elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2 
-            ELSE
-                elementspan =   (p%BlSpn(J,I)-p%BlSpn(J-1,I))/2    +    (p%BlSpn(J+1,I)-p%BlSpn(J,I))/2  
+            !--------Turbulent Boundary Layer Trailing Edge Noise----------------------------!
+            IF ( p%ITURB /= ITURB_None )   THEN
+               !returns  m%SPLP, m%SPLS, m%SPLALPH
+               CALL TBLTE(AlphaNoise_Deg,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+                      elementspan,m%rTEtoObserve(K,J,I), p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),p%StallStart(J,I), &
+                      m%SPLP,m%SPLS,m%SPLALPH )
+                    
+               IF (p%ITURB .EQ. ITURB_TNO)  THEN
+                  m%EdgeVelVar=1.0_ReKi
+                  !returns m%SPLP, m%SPLS from TBLTE
+                  CALL TBLTE_TNO(UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+                        elementspan,m%rTEtoObserve(K,J,I),m%CfVar,m%d99var,m%EdgeVelVar ,p, &
+                        m%SPLP,m%SPLS)
+               ENDIF
+               
+               ! If flag for TBL is ON, compute Pressure, Suction, and AoA contributions
+               call TotalContributionFromType(m%SPLP,Ptotal,NoiseMech=2)
+               call TotalContributionFromType(m%SPLS,Ptotal,NoiseMech=3)
+               call TotalContributionFromType(m%SPLALPH,Ptotal,NoiseMech=4)
             ENDIF
-            AlphaNoise= u%AoANoise(J,I)
-            call MPi2Pi(AlphaNoise) ! make sure this is in an appropriate range [-pi,pi]
-            AlphaNoise= AlphaNoise * R2D_D ! convert to degrees since that is how this code is set up.
-
-            !--------Read in Boundary Layer Data-------------------------!
-            IF (p%X_BLMethod .EQ. X_BLMethod_Tables) THEN
-                call BL_Param_Interp(p, m, Unoise, AlphaNoise, p%BlChord(J,I), p%BlAFID(J,I))
-
-                m%d99Var     = m%d99Var*p%BlChord(J,I)
-                m%dstarVar   = m%dstarVar*p%BlChord(J,I)
+            
+                
+            !--------Blunt Trailing Edge Noise----------------------------------------------!
+            IF ( p%IBLUNT == IBLUNT_BPM )   THEN   ! calculate m%SPLBLUNT(1:nFreq)
+               CALL BLUNT(AlphaNoise_Deg,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+               elementspan,m%rTEtoObserve(K,J,I),p%TEThick(J,I),p%TEAngle(J,I), &
+               p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT,p%StallStart(J,I) )
+               
+               call TotalContributionFromType(m%SPLBLUNT,Ptotal,NoiseMech=5)
+            ENDIF
+            
+            
+            !--------Tip Noise--------------------------------------------------------------!
+            IF ( (p%ITIP == ITIP_ON) .AND. (J .EQ. p%NumBlNds) ) THEN ! calculate m%SPLTIP(1:nFreq)
+               CALL TIPNOIS(AlphaNoise_Deg,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+                  m%rTEtoObserve(K,J,I), p, m%SPLTIP)
+               
+               ! If flag for Tip is ON and the current blade node (J) is the last node (tip), compute Tip contribution
+               call TotalContributionFromType(m%SPLTIP,Ptotal,NoiseMech=6)
             ENDIF
 
-            !------------------------------!!------------------------------!!------------------------------!!------------------------------!
-            !------------------------------!!------------------------------!!------------------------------!!------------------------------!
-            !------------------------------!!------------------------------!!------------------------------!!------------------------------!
-            DO K = 1,p%NrObsLoc
-
-                !--------Laminar Boundary Layer Vortex Shedding Noise----------------------------!
-                IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )    THEN
-                    CALL LBLVS(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
-                        elementspan,m%rTEtoObserve(K,J,I), p,m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLLBL,p%StallStart(J,I))
-                ENDIF
-
-                !--------Turbulent Boundary Layer Trailing Edge Noise----------------------------!
-                IF ( p%ITURB /= ITURB_None )   THEN
-                   !returns  m%SPLP, m%SPLS, m%SPLTBL, m%SPLALPH
-                   
-                    CALL TBLTE(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
-                    elementspan,m%rTEtoObserve(K,J,I), p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),p%StallStart(J,I), &
-                    m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL )
-                    
-                    IF (p%ITURB .EQ. ITURB_TNO)  THEN
-                       
-                   
-                        m%EdgeVelVar(1)=1.000d0;
-                        m%EdgeVelVar(2)=m%EdgeVelVar(1);
-                        !returns m%SPLP, m%SPLS, m%SPLTBL; needs m%SPLALPH from TBLTE
-                        CALL TBLTE_TNO(UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
-                            elementspan,m%rTEtoObserve(K,J,I),m%CfVar,m%d99var,m%EdgeVelVar ,p, &
-                            m%SPLP,m%SPLS,m%SPLALPH,m%SPLTBL)
-                    ENDIF
-                ENDIF
                 
-                !--------Blunt Trailing Edge Noise----------------------------------------------!
-                IF ( p%IBLUNT .EQ. IBLUNT_BPM )   THEN   ! calculate m%SPLBLUNT(1:nFreq)
-                    CALL BLUNT(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
-                    elementspan,m%rTEtoObserve(K,J,I),p%TEThick(J,I),p%TEAngle(J,I), &
-                    p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT,p%StallStart(J,I) )
-                ENDIF
-                
-                !--------Tip Noise--------------------------------------------------------------!
-                IF (  (p%ITIP .EQ. ITIP_ON) .AND. (J .EQ. p%NumBlNds)  ) THEN ! calculate m%SPLTIP(1:nFreq)
-                    CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
-                        m%rTEtoObserve(K,J,I), p, m%SPLTIP)
-                ENDIF
-                
-                !--------Inflow Turbulence Noise ------------------------------------------------!
-                ! important checks to be done inflow tubulence inputs
-                IF (p%IInflow /= IInflow_None) then
+            !--------Inflow Turbulence Noise ------------------------------------------------!
+            ! important checks to be done inflow tubulence inputs
+            IF (p%IInflow /= IInflow_None) then
 
-                    ! Amiet's Inflow Noise Model is Calculated as long as InflowNoise is On
-                    CALL InflowNoise(AlphaNoise,p%BlChord(J,I),Unoise,m%ChordAngleLE(K,J,I),m%SpanAngleLE(K,J,I),&
-                        elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti )
+               ! Amiet's Inflow Noise Model is Calculated as long as InflowNoise is On
+               CALL InflowNoise(AlphaNoise,p%BlChord(J,I),Unoise,m%ChordAngleLE(K,J,I),m%SpanAngleLE(K,J,I),&
+                  elementspan,m%rLEtoObserve(K,J,I),xd%TIVx(J,I),p,m%SPLti )
                     
-                    ! If Guidati model (simplified or full version) is also on then the 'SPL correction' to Amiet's model will be added 
-                    IF ( p%IInflow .EQ. IInflow_FullGuidati )   THEN      
-                        CALL Simple_Guidati(UNoise,p%BlChord(J,I),p%AFThickGuida(2,p%BlAFID(J,I)), p%AFThickGuida(1,p%BlAFID(J,I)),p,m%SPLTIGui )
-                        m%SPLti = m%SPLti+m%SPLTIGui + 10. ! +10 is fudge factor to match NLR data
-                    ELSEIF ( p%IInflow .EQ. IInflow_SimpleGuidati )   THEN
-                       call setErrStat(ErrID_Fatal,'Full Guidati removed',ErrStat, ErrMsg,RoutineName)
-                       return
-                    ENDIF
+               ! If Guidati model (simplified or full version) is also on then the 'SPL correction' to Amiet's model will be added 
+               IF ( p%IInflow .EQ. IInflow_FullGuidati )   THEN      
+                  CALL Simple_Guidati(UNoise,p%BlChord(J,I),p%AFThickGuida(2,p%BlAFID(J,I)), p%AFThickGuida(1,p%BlAFID(J,I)),p,m%SPLTIGui )
+                  m%SPLti = m%SPLti+m%SPLTIGui + 10. ! +10 is fudge factor to match NLR data
+               ELSEIF ( p%IInflow .EQ. IInflow_SimpleGuidati )   THEN
+                  call setErrStat(ErrID_Fatal,'Full Guidati removed',ErrStat, ErrMsg,RoutineName)
+                  return
+               ENDIF
                     
-                ENDIF
-                
-                !----------------------------------------------------------------------------------------------------------------------------------!
-                !      ADD IN THIS SEGMENT'S CONTRIBUTION ON A MEAN-SQUARE
-                !      PRESSURE BASIS
-                !----------------------------------------------------------------------------------------------------------------------------------!
-               Ptotal = 0.0_ReKi         ! Total Sound Pressure - All (7) mechanisms, All Frequencies
-               PtotalLBL= 0.0_ReKi        ! Total Sound Pressure - Laminar Boundary Layer, All Frequencies
-               PtotalTBLP= 0.0_ReKi       ! Total Sound Pressure - Turbulent Boundary Layer, Pressure Contribution, All Frequencies
-               PtotalTBLS= 0.0_ReKi       ! Total Sound Pressure - Turbulent Boundary Layer, Suction Contribution, All Frequencies
-               PtotalSep= 0.0_ReKi        ! Total Sound Pressure - Separation, All Frequencies
-               PtotalTBLAll = 0.0_ReKi    ! Total Sound Pressure - Turbulent Boundary Layer, All Frequencies
-               PtotalBlunt= 0.0_ReKi      ! Total Sound Pressure - Blunt Trailing Edge, All Frequencies
-               PtotalTip= 0.0_ReKi        ! Total Sound Pressure - Tip Noise, All Frequencies
-               PtotalInflow= 0.0_ReKi     ! Total Sound Pressure - Turbulent Inflow, All Frequencies
-               PLBL= 0.0_ReKi             ! Laminar Boundary Layer - Current Iteration
-               PTBLP= 0.0_ReKi            ! Turbulent Boundary Layer, Pressure Contribution - Current Iteration
-               PTBLS= 0.0_ReKi            ! Turbulent Boundary Layer, Suction Contribution - Current Iteration
-               PTBLALH= 0.0_ReKi          ! Turbulent Boundary Layer, Angle of Attack Contribution - Current Iteration (Feeds into PTotalSep. Consider renaming.)
-               PTip= 0.0_ReKi             ! Tip Noise - Current Iteration
-               PTI= 0.0_ReKi              ! Turbulent Inflow - Current Iteration
-               PBLNT= 0.0_ReKi            ! Blunt Trailing Edge - Current Iteration
-
-               DO III=1,size(p%FreqList)   ! Loops through each 1/3rd octave center frequency 
-         
-                  ! If flag for LBL is ON and Boundary Layer Trip is OFF, then compute LBL
-                  IF ( (p%ILAM .EQ. ILAM_BPM) .AND. (p%ITRIP .EQ. ITRIP_None) )  THEN
-                     IF (p%AweightFlag) THEN
-                         m%SPLLBL(III) = m%SPLLBL(III) + p%Aweight(III)                ! A-weighting
-                     ENDIF
-                        
-                     PLBL = 10.0_ReKi**(m%SPLLBL(III)/10.0_ReKi)                       ! SPL to Sound Pressure (P) Conversion for III Frequency
-                        
-                     PtotalLBL = PtotalLBL + PLBL                                      ! Sum of Current LBL with LBL Running Total
-                        Ptotal = Ptotal + PLBL                                         ! Sum of Current LBL with Overall Running Total
-                     m%PtotalFreq(III,K) = m%PtotalFreq(III,K) + PLBL                  ! Running sum of observer and frequency dependent sound pressure
-                  
-                     m%SumSpecNoiseSep(1,III,K) = PLBL + m%SumSpecNoiseSep(1,III,K)    ! Assigns Current LBL to Appropriate Mechanism (1), Observer (K), and Frequency (III)
-                  ENDIF
-
-                  ! If flag for TBL is ON, compute Pressure, Suction, and AoA contributions
-                  IF ( p%ITURB /= ITURB_None )  THEN
-                     IF (p%AweightFlag) THEN
-                        m%SPLP(III) = m%SPLP(III) + p%Aweight(III)                     ! A-weighting
-                        m%SPLS(III) = m%SPLS(III) + p%Aweight(III)                     ! A-weighting
-                        m%SPLALPH(III) = m%SPLALPH(III) + p%Aweight(III)               ! A-weighting
-                     ENDIF
-
-                     PTBLP = 10.0_ReKi**(m%SPLP(III)/10.0_ReKi)                        ! SPL to P Conversion for III Frequency
-                     PTBLS = 10.0_ReKi**(m%SPLS(III)/10.0_ReKi)                        ! SPL to P Conversion for III Frequency
-                     PTBLALH = 10.0_ReKi**(m%SPLALPH(III)/10.0_ReKi)                   ! SPL to P Conversion for III Frequency
-                        
-                     PtotalTBLP = PtotalTBLP + PTBLP                                   ! Sum of Current TBLP with TBLP Running Total
-                     PtotalTBLS = PtotalTBLS + PTBLS                                   ! Sum of Current TBLS with TBLS Running Total         
-                     PtotalSep  = PtotalSep  + PTBLALH                                 ! Sum of Current TBLALH with TBLALH Running Total
-                  
-                     Ptotal = Ptotal + PTBLP + PTBLS + PTBLALH                         ! Sum of Current TBL with Overall Running Total
-                     m%PtotalFreq(III,K) = m%PtotalFreq(III,K) + PTBLP + PTBLS + PTBLALH  ! Running sum of observer and frequency dependent sound pressure
-                     PtotalTBLAll = PtotalTBLAll + 10.0_ReKi**(m%SPLTBL(III)/10.0_ReKi)   ! SPLTBL from comment on line 1794 is the mean-square sum of SPLP, SPLS, and SPLALPH.
-                                                                                          !   So this should be equal to PTBLP+PTBLS+TBLALH
-                     m%SumSpecNoiseSep(2,III,K) = PTBLP   + m%SumSpecNoiseSep(2,III,K)    ! Assigns Current TBLP to Appropriate Mechanism (2), Observer (K), and Frequency (III)
-                     m%SumSpecNoiseSep(3,III,K) = PTBLS   + m%SumSpecNoiseSep(3,III,K)    ! Assigns Current TBLS to Appropriate Mechanism (2), Observer (K), and Frequency (III)
-                     m%SumSpecNoiseSep(4,III,K) = PTBLALH + m%SumSpecNoiseSep(4,III,K)    ! Assigns Current TBLALH to Appropriate Mechanism (2), Observer (K), and Frequency (III)
-                  ENDIF
-
-                  ! If flag for Blunt TE is ON, compute Blunt contribution
-                  IF ( p%IBLUNT /= IBLUNT_None )  THEN
-                     IF (p%AweightFlag) THEN
-                        m%SPLBLUNT(III) = m%SPLBLUNT(III) + p%Aweight(III)                ! A-weighting
-                     ENDIF
-                        
-                     PBLNT = 10.0_ReKi**(m%SPLBLUNT(III)/10.0_ReKi)                       ! SPL to P Conversion for III Frequency
-                        
-                     PtotalBlunt = PtotalBlunt + PBLNT                                    ! Sum of Current Blunt with Blunt Running Total
-                     Ptotal = Ptotal + PBLNT                                              ! Sum of Current Blunt with Overall Running Total
-                     m%PtotalFreq(III,K) = m%PtotalFreq(III,K) + PBLNT                    ! Running sum of observer and frequency dependent sound pressure
-                        
-                     m%SumSpecNoiseSep(5,III,K) = PBLNT + m%SumSpecNoiseSep(5,III,K)      ! Assigns Current Blunt to Appropriate Mechanism (5), Observer (K), and Frequency (III)
-                  ENDIF
-
-                  ! If flag for Tip is ON and the current blade node (J) is the last node (tip), compute Tip contribution
-                  IF ( (p%ITIP == ITIP_ON) .AND. (J .EQ. p%NumBlNds) )  THEN
-                     IF (p%AweightFlag) THEN
-                        m%SPLTIP(III) = m%SPLTIP(III) + p%Aweight(III)                    ! A-weighting
-                     ENDIF
-                        
-                     PTip = 10.0_ReKi**(m%SPLTIP(III)/10.0_ReKi)                          ! SPL to P Conversion for III Frequency
-                        
-                     PtotalTip = PtotalTip + PTip                                         ! Sum of Current Tip with Tip Running Total
-                     Ptotal = Ptotal + PTip                                               ! Sum of Current Tip with Overall Running Total
-                     m%PtotalFreq(III,K) = m%PtotalFreq(III,K) + PTip                     ! Running sum of observer and frequency dependent sound pressure
-                  
-                     m%SumSpecNoiseSep(6,III,K) = PTip + m%SumSpecNoiseSep(6,III,K)       ! Assigns Current Tip to Appropriate Mechanism (6), Observer (K), and Frequency (III)
-                  ENDIF
-
-                  ! If flag for TI is ON, compute Turbulent Inflow contribution
-                  IF ( (p%IInflow /= IInflow_None)  )  THEN
-                     IF (p%AweightFlag) THEN
-                        m%SPLti(III) = m%SPLti(III) + p%Aweight(III)                      ! A-weighting
-                     ENDIF
-                        
-                     PTI = 10.0_ReKi**(m%SPLti(III)/10.0_ReKi)                            ! SPL to P Conversion for III Frequency
-                        
-                     PtotalInflow = PtotalInflow + PTI                                    ! Sum of Current TI with TI Running Total
-                     Ptotal = Ptotal + PTI                                                ! Sum of Current TI with Overall Running Total
-                     m%PtotalFreq(III,K) = m%PtotalFreq(III,K) + PTI                      ! Running sum of observer and frequency dependent sound pressure
-                  
-                     m%SumSpecNoiseSep(7,III,K) = PTI + m%SumSpecNoiseSep(7,III,K)        ! Assigns Current TI to Appropriate Mechanism (7), Observer (K), and Frequency (III)
-                  ENDIF
-                    
-                ENDDO ! III = 1, size(p%FreqList)
-              
-              m%DirectiviOutput(K)         = Ptotal + m%DirectiviOutput(K)            ! Assigns Overall Pressure to Appropriate Observer for Directivity   
-                                                                                          !    Set .EQ. to 1 instead (LOG10(1)=0)
-              m%OASPL(K,J,I) = Ptotal + m%OASPL(K,J,I)               ! Assigns Overall Pressure to Appropriate Observer/Blade/Node for Directivity
-           ENDDO ! Loop on observers
-       ENDDO ! Loop on blade nodes
-    ENDDO ! Loop on blades
+               call TotalContributionFromType(m%SPLti,Ptotal,NoiseMech=7) ! compute Turbulent Inflow contribution
+            ENDIF
+            !m%DirectiviOutput(K) = Ptotal + m%DirectiviOutput(K)   ! Assigns Overall Pressure to Appropriate Observer for Directivity
+            
+            m%OASPL(K,J,I) = Ptotal + m%OASPL(K,J,I)               ! Assigns Overall Pressure to Appropriate Observer/Blade/Node for Directivity
+         ENDDO ! Loop on observers (K)
+            
+      ENDDO ! Loop on blade nodes (J)
+   ENDDO ! Loop on blades (I)
 
     ! If any Output file is wanted, convert DirectiviOutput from Directivity Factor to Directivity Index
     ! Ref: Fundamentals of Acoustics by Colin Hansen (1951)
-   
+    
     ! Since these will all be converted via LOG10, they will produce an error if .EQ. 0., Set .EQ. to 1 instead (LOG10(1)=0)
    DO K = 1,p%NrObsLoc 
+      m%DirectiviOutput(K) = SUM(m%SumSpecNoiseSep(:,:,K))
+      
       IF (m%DirectiviOutput(K)  .NE. 0.)      m%DirectiviOutput(K) = 10.*LOG10(m%DirectiviOutput(K))        !! DirectiviOutput is used as total observer OASPL for Output File 1
    ENDDO ! Loop on observers
    
-   IF  (p%NrOutFile .gt. 1) THEN                             !! OASPL is used as observer/blade/node OASPL for Output File 4
+   IF  (p%NrOutFile .gt. 1) THEN
 
       ! Procedure for Output file 2
       DO K = 1,p%NrObsLoc
          DO III=1,size(p%FreqList)
+            m%PtotalFreq(III,K) = SUM( m%SumSpecNoiseSep(:,III,K) )
+
             IF (m%PtotalFreq(III,K) .NE. 0.)  m%PtotalFreq(III,K)    = 10.*LOG10(m%PtotalFreq(III,K))               ! P to SPL conversion
          ENDDO
       ENDDO
@@ -1218,6 +1086,32 @@ SUBROUTINE CalcAeroAcousticsOutput(u,p,m,xd,y,errStat,errMsg)
 
    END IF ! file 2
 
+   
+contains
+
+   subroutine TotalContributionFromType(SPL,Ptotal,NoiseMech)
+      REAL(ReKi),     intent(inout) :: SPL(:)
+      INTEGER(IntKi), intent(in   ) :: NoiseMech ! number of noise mechanism (index into SumSpecNoiseSep)
+      REAL(ReKi),     intent(inout) :: Ptotal
+      REAL(ReKi)                    :: Pt
+      REAL(ReKi)                    :: P_SumAllFreq
+
+      IF (p%AweightFlag) THEN
+         SPL = SPL + p%Aweight                     ! A-weighting for all frequencies
+      ENDIF
+
+      P_SumAllFreq = 0.0_ReKi
+                  
+      do III=1,size(p%FreqList)   ! Loops through each 1/3rd octave center frequency 
+
+         Pt = 10.0_ReKi**(SPL(III)/10.0_ReKi)                                           ! SPL to P Conversion for III Frequency
+                        
+         P_SumAllFreq = P_SumAllFreq + Pt                                               ! Sum for Running Total
+         m%SumSpecNoiseSep(NoiseMech,III,K) = m%SumSpecNoiseSep(NoiseMech,III,K) + Pt   ! Running sum of observer and frequency dependent sound pressure
+
+      end do
+      Ptotal = Ptotal + P_SumAllFreq
+   end subroutine
    
 END SUBROUTINE CalcAeroAcousticsOutput
 !==================================================================================================================================!
@@ -1332,7 +1226,7 @@ SUBROUTINE LBLVS(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,SPLLAM,
     ENDDO
 END SUBROUTINE LBLVS
 !==================================================================================================================================!
-SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVal,SPLP,SPLS,SPLALPH,SPLTBL)
+SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVal,SPLP,SPLS,SPLALPH)
     REAL(ReKi),                             INTENT(IN   )  :: ALPSTAR        ! AOA(deg)
     REAL(ReKi),                             INTENT(IN   )  :: C              ! Chord Length           (m)
     REAL(ReKi),                             INTENT(IN   )  :: U              ! Unoise(m/s)
@@ -1352,7 +1246,6 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
 
     REAL(ReKi),DIMENSION(size(p%FreqList)),  INTENT(  OUT)  :: SPLP           ! SOUND PRESSURE LEVEL DUE TO PRESSURE SIDE OF AIRFOIL (db)
     REAL(ReKi),DIMENSION(size(p%FreqList)),  INTENT(  OUT)  :: SPLS           ! SOUND PRESSURE LEVEL DUE TO SUCTION SIDE OF AIRFOIL  (db)
-    REAL(ReKi),DIMENSION(size(p%FreqList)),  INTENT(  OUT)  :: SPLTBL         ! TOTAL SOUND PRESSURE LEVEL DUE TO TBLTE MECHANISM    (db)
     REAL(ReKi),DIMENSION(size(p%FreqList)),  INTENT(  OUT)  :: SPLALPH        ! SOUND PRESSURE LEVEL DUE TO ANGLE OF ATTACK CONTRIBUTION (db)
     
     ! Local variables
@@ -1395,9 +1288,9 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
     real(ReKi)   :: BETA0      ! USED IN 'B' COMPUTATION               ---
     real(ReKi)   :: K1         ! AMPLITUDE FUNCTION (DB)
     real(ReKi)   :: K2         ! AMPLITUDE FUNCTION (DB)
-    real(ReKi)   :: P1         ! PRESSURE SIDE PRESSURE (NT/M2)
-    real(ReKi)   :: P2         ! SUCTION SIDE PRESSURE                      (NT/M2)
-    real(ReKi)   :: P4         ! PRESSURE FROM ANGLE OF ATTACK CONTRIBUTION (NT/M2)
+    !real(ReKi)   :: P1         ! PRESSURE SIDE PRESSURE (NT/M2)
+    !real(ReKi)   :: P2         ! SUCTION SIDE PRESSURE                      (NT/M2)
+    !real(ReKi)   :: P4         ! PRESSURE FROM ANGLE OF ATTACK CONTRIBUTION (NT/M2)
     real(ReKi)   :: M          ! MACH NUMBER
     real(ReKi)   :: RC         ! REYNOLDS NUMBER BASED ON  CHORD
     real(ReKi)   :: DELTAP     ! PRESSURE SIDE BOUNDARY LAYER THICKNESS METERS
@@ -1547,9 +1440,11 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
             ! The 'a' computation is dropped if 'switch' is true
             LogVal = MAX(AA_EPSILON,DSTRS*M**5*DBARL*L/R**2)
             SPLS(I) = 10.*LOG10(LogVal)
+            
             !    SPLP(I) = 0.0 + 10.*LOG10(DSTRS*M**5*DBARL*L/R**2) ! changed the line below because the SPLP should be calculatd with DSTRP not with DSTRS
             LogVal = MAX(AA_EPSILON,DSTRP*M**5*DBARL*L/R**2)
             SPLP(I) = 10.*LOG10(LogVal) ! this is correct
+            
             !        B = ABS(LOG10(STS / ST2))
             LogVal = MAX(AA_EPSILON,STS / ST2)
             B = LOG10(LogVal) ! abs not needed absolute taken in the AMAX,AMIN
@@ -1564,11 +1459,11 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
         IF (SPLS(I)    .LT. -100.) SPLS(I)    = -100.                      ! Similar to Eq 29 of BPM Airfoil Self-noise and Prediction paper      
         IF (SPLALPH(I) .LT. -100.) SPLALPH(I) = -100.                      ! Eq 30 of BPM Airfoil Self-noise and Prediction paper recommends SPLALPH = 10log(stuff) + A' + K2, where A' is calculated same as A but with x3 Rc   
 
-        P1  = 10.**(SPLP(I) / 10.)            ! SPL_Pressure
-        P2  = 10.**(SPLS(I) / 10.)            ! SPL_Suction
-        P4  = 10.**(SPLALPH(I) / 10.)         ! SPL_AoA   
-        LogVal = MAX(AA_EPSILON,P1 + P2 + P4)
-        SPLTBL(I) = 10. * LOG10(LogVal)                                     ! Eq 24 from BPM Airfoil Self-noise and Prediction paper
+        !P1  = 10.**(SPLP(I) / 10.)            ! SPL_Pressure
+        !P2  = 10.**(SPLS(I) / 10.)            ! SPL_Suction
+        !P4  = 10.**(SPLALPH(I) / 10.)         ! SPL_AoA   
+        !LogVal = MAX(AA_EPSILON,P1 + P2 + P4)
+        !SPLTBL(I) = 10. * LOG10(LogVal)                                     ! Eq 24 from BPM Airfoil Self-noise and Prediction paper
 
 
 
@@ -1577,7 +1472,7 @@ SUBROUTINE TBLTE(ALPSTAR,C,U,THETA,PHI,L,R,p,d99Var2,dstarVar1,dstarVar2,StallVa
 END SUBROUTINE TBLTE
 !==================================================================================================================================!
 SUBROUTINE TIPNOIS(ALPHTIP,ALPRAT2,C,U ,THETA,PHI, R,p,SPLTIP)
-    REAL(ReKi),                               INTENT(IN   )  :: ALPHTIP        !< AOA
+    REAL(ReKi),                               INTENT(IN   )  :: ALPHTIP        !< AOA, deg
     REAL(ReKi),                               INTENT(IN   )  :: ALPRAT2        !< TIP LIFT CURVE SLOPE                 ---
     REAL(ReKi),                               INTENT(IN   )  :: C              !< Chord Length
     REAL(ReKi),                               INTENT(IN   )  :: U              !< FREESTREAM VELOCITY               METERS/SEC
@@ -1636,7 +1531,7 @@ SUBROUTINE TIPNOIS(ALPHTIP,ALPRAT2,C,U ,THETA,PHI, R,p,SPLTIP)
 END SUBROUTINE TipNois
 !==================================================================================================================================!
 SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti)
-  REAL(ReKi),                                 INTENT(IN   ) :: AlphaNoise     ! AOA, deg
+  REAL(ReKi),                                 INTENT(IN   ) :: AlphaNoise     ! AOA, radians
   REAL(ReKi),                                 INTENT(IN   ) :: Chord          ! Chord Length
   REAL(ReKi),                                 INTENT(IN   ) :: U              !
   REAL(ReKi),                                 INTENT(IN   ) :: THETA          !
@@ -1661,17 +1556,12 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti)
   REAL(ReKi)                   :: Mach                                            ! local mach number
   REAL(ReKi)                   :: Sears                                           ! Sears function
   REAL(ReKi)                   :: SPLhigh                                         ! predicted high frequency sound pressure level
-!  REAL(ReKi)                   :: Ums                                             ! mean square turbulence level
   REAL(ReKi)                   :: WaveNumber                                      ! wave number - non-dimensional frequency
   REAL(ReKi)                   :: Kbar                                      ! nafnoise 
   REAL(ReKi)                   :: khat                                      ! nafnoise 
-!  REAL(ReKi)                   :: Kh                                        ! nafnoise 
   REAL(ReKi)                   :: ke                                        ! nafnoise 
-  REAL(ReKi)                   :: alpstar                                   ! AoA in radians
-!  REAL(ReKi)                   :: mu                                        ! nafnoise 
   REAL(ReKi)                   :: tinooisess                                ! nafnoise 
   REAL(ReKi)                   :: LogInverse                                ! temp variable to ensure we avoid taking the log of 0 
-  ! REAL(ReKi)                   :: L_Gammas                                  ! nafnoise 
 
   INTEGER(intKi)           :: I        !I A generic index for DO loops.
 
@@ -1705,7 +1595,6 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti)
    Frequency_cutoff = 10*U/PI/Chord
    Ke = 3.0/(4.0*p%Lturb) 
    Beta2 = 1-Mach*Mach
-   ALPSTAR = AlphaNoise*D2R ! note that these references use AoA in radians, NOT degrees
 
    DO I=1,size(p%FreqList)
       IF (p%FreqList(I) <= Frequency_cutoff) THEN
@@ -1728,7 +1617,7 @@ SUBROUTINE InflowNoise(AlphaNoise,Chord,U,THETA,PHI,d,RObs,TINoise,p,SPLti)
    !!!                  (RObs*RObs)*(Mach**5)*tinooisess*tinooisess*(WaveNumber**3) &
    !!!                  *(1+WaveNumber**2)**(-7./3.)*Directivity) + 181.3  
    
-      SPLhigh = SPLhigh + 10.*LOG10(1+ 9.0*ALPSTAR**2)  ! Component due to angles of attack, ref a [2])   
+      SPLhigh = SPLhigh + 10.*LOG10(1+ 9.0*AlphaNoise**2)  ! Component due to angles of attack, ref a [2])   
 
       Sears = 1/(2.*PI*Kbar/Beta2+1/(1+2.4*Kbar/Beta2))      ! ref a [2])
 
@@ -2124,7 +2013,7 @@ SUBROUTINE THICK(C,RC,ALPSTAR,p,DELTAP,DSTRS,DSTRP,StallVal)
 !!       RC                 REYNOLDS NUMBER BASED ON CHORD       ---
 !!       U                  FREESTREAM VELOCITY                METERS/SEC
 !!       KinViscosity       KINEMATIC VISCOSITY                M2/SEC
-    REAL(ReKi),                INTENT(IN   )  :: ALPSTAR        !< AOA
+    REAL(ReKi),                INTENT(IN   )  :: ALPSTAR        !< AOA, deg
     REAL(ReKi),                INTENT(IN   )  :: C              !< Chord Length
     REAL(ReKi),                INTENT(IN   )  :: RC             !< RC= U*C/KinViscosity
     TYPE(AA_ParameterType),    INTENT(IN   )  :: p              !< Parameters
@@ -2274,7 +2163,7 @@ END SUBROUTINE Simple_Guidati
 !==================================================================================================================================!
 !================================ Turbulent Boundary Layer Trailing Edge Noise ====================================================!
 !=================================================== TNO START ====================================================================!
-SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH,SPLTBL)
+SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS)
    USE TNO, only: SPL_integrate
     REAL(ReKi),                               INTENT(IN   ) :: U          !< Unoise                 (m/s)
     REAL(ReKi),                               INTENT(IN   ) :: THETA      !< DIRECTIVITY ANGLE      (deg)
@@ -2285,10 +2174,9 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
     REAL(ReKi),DIMENSION(2),                  INTENT(IN   ) :: d99all     !< 
     REAL(ReKi),DIMENSION(2),                  INTENT(IN   ) :: EdgeVelAll !< 
     TYPE(AA_ParameterType),                   INTENT(IN   ) :: p          !< Noise Module Parameters
-    REAL(ReKi),DIMENSION(size(p%FreqList)),   INTENT(IN   ) :: SPLALPH    !< SOUND PRESSURE LEVEL DUE TO ANGLE OF ATTACK CONTRIBUTION (db)
+!   REAL(ReKi),DIMENSION(size(p%FreqList)),   INTENT(IN   ) :: SPLALPH    !< SOUND PRESSURE LEVEL DUE TO ANGLE OF ATTACK CONTRIBUTION (db)
     REAL(ReKi),DIMENSION(size(p%FreqList)),   INTENT(  OUT) :: SPLP       !< SOUND PRESSURE LEVEL DUE TO PRESSURE SIDE OF AIRFOIL (db)
     REAL(ReKi),DIMENSION(size(p%FreqList)),   INTENT(  OUT) :: SPLS       !< SOUND PRESSURE LEVEL DUE TO SUCTION SIDE OF AIRFOIL  (db)
-    REAL(ReKi),DIMENSION(size(p%FreqList)),   INTENT(  OUT) :: SPLTBL     !< TOTAL SOUND PRESSURE LEVEL DUE TO TBLTE MECHANISM    (db)
 
     ! Local variables
     REAL(ReKi) :: answer
@@ -2297,7 +2185,7 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
     REAL(ReKi) :: SPL_press,SPL_suction
     REAL(ReKi) :: band_width,band_ratio
     REAL(ReKi) :: DBARH
-    REAL(ReKi) :: P1,P2,P4
+    !REAL(ReKi) :: P1,P2,P4
     INTEGER (4)  :: n_freq
     INTEGER (4)  :: i_omega
 
@@ -2312,7 +2200,6 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
     
     SPLS = 0.0_ReKi ! initialize in case Cfall(1) <= 0
     SPLP = 0.0_ReKi ! initialize in case Cfall(2) <= 0
-    SPLTBL = 0.0_ReKi
     
     ! Body of TNO 
     band_ratio = 2.**(1./3.)
@@ -2353,21 +2240,21 @@ SUBROUTINE TBLTE_TNO(U,THETA,PHI,D,R,Cfall,d99all,EdgeVelAll,p,SPLP,SPLS,SPLALPH
         IF (SPLP(i_omega)    .LT. -100.) SPLP(i_omega)    = -100.
         IF (SPLS(i_omega)    .LT. -100.) SPLS(i_omega)    = -100.
 
-        P1  = 10.**(SPLP(i_omega) / 10.)
-        P2  = 10.**(SPLS(i_omega) / 10.)
-        P4  = 10.**(SPLALPH(i_omega) / 10.)
-        
-        SPLTBL(i_omega) = 10. * LOG10(P1 + P2 + P4)
+        !P1  = 10.**(SPLP(i_omega) / 10.)
+        !P2  = 10.**(SPLS(i_omega) / 10.)
+        !P4  = 10.**(SPLALPH(i_omega) / 10.)
+        !
+        !SPLTBL(i_omega) = 10. * LOG10(P1 + P2 + P4)
     enddo
 END SUBROUTINE TBLTE_TNO
 
 
 !====================================================================================================
-SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichAirfoil)
+SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise_Deg,C,whichAirfoil)
    TYPE(AA_ParameterType),                INTENT(IN   ) :: p              !< Parameters
    TYPE(AA_MiscVarType),                  INTENT(INOUT) :: m              !< misc/optimization data (not defined in submodules)
    REAL(ReKi),                            INTENT(IN   ) :: U              !< METERS/SEC
-   REAL(ReKi),                            INTENT(IN   ) :: AlphaNoise     !< Angle of Attack                           DEG
+   REAL(ReKi),                            INTENT(IN   ) :: AlphaNoise_Deg     !< Angle of Attack                           DEG
    REAL(ReKi),                            INTENT(IN   ) :: C              !< Chord                                     METERS
    integer(intKi),                        INTENT(IN   ) :: whichAirfoil   !< whichairfoil
    
@@ -2393,7 +2280,7 @@ SUBROUTINE BL_Param_Interp(p,m,U,AlphaNoise,C,whichAirfoil)
 
       ! find the indices into the arrays representing coordinates of each dimension:
       !  (by using LocateStp, we do not require equally spaced arrays)
-   InCoord = (/ AlphaNoise, RC /)
+   InCoord = (/ AlphaNoise_Deg, RC /)
    
    MaxIndx(1) = SIZE(p%AOAListBL)
    MaxIndx(2) = SIZE(p%ReListBL)
@@ -2460,7 +2347,7 @@ END SUBROUTINE BL_Param_Interp
 
 SUBROUTINE Aero_Tests()
     !--------Laminar Boundary Layer Vortex Shedding Noise----------------------------!
-    !CALL LBLVS(AlphaNoise,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+    !CALL LBLVS(AlphaNoise_Deg,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
     !    elementspan,m%rTEtoObserve(K,J,I), &
     !    p,m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLLBL)
     !--------Turbulent Boundary Layer Trailing Edge Noise----------------------------!
@@ -2475,7 +2362,7 @@ SUBROUTINE Aero_Tests()
     !CALL BLUNT(3.0d0,0.22860d0,63.920d0,90.0d0,90.0d0,0.5090d0,1.220d0,&
     !    p%TEThick(J,I),p%TEAngle(J,I),p, m%d99Var(2),m%dstarVar(1),m%dstarVar(2),m%SPLBLUNT )
     !--------Tip Noise--------------------------------------------------------------!
-    !CALL TIPNOIS(AlphaNoise,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
+    !CALL TIPNOIS(AlphaNoise_Deg,p%ALpRAT,p%BlChord(J,I),UNoise,m%ChordAngleTE(K,J,I),m%SpanAngleTE(K,J,I), &
     !    m%rTEtoObserve(K,J,I), p, m%SPLTIP,ErrStat2,errMsg2)
     !--------Inflow Turbulence Noise ------------------------------------------------!
     !CALL InflowNoise(3.0d0,0.22860d0,63.920d0,90.0d0,90.0d0,0.5090d0,1.220d0, xd%TIVx(J,I),0.050d0,p,m%SPLti )
