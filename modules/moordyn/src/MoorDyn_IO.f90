@@ -83,7 +83,7 @@ MODULE MoorDyn_IO
  
 
   ! List of units corresponding to the quantities parameters for QTypes
-  CHARACTER(ChanLen), PARAMETER :: UnitList(0:50) = (/ &
+  CHARACTER(ChanLen), PARAMETER :: UnitList(0:26) = (/ &
   "(s)       ",                             & !  0: Time
   "(m)       ", "(m)       ", "(m)       ", & !  1–3:  PosX, PosY, PosZ
   "(deg)     ", "(deg)     ", "(deg)     ", & !  4–6:  RotX, RotY, RotZ
@@ -864,7 +864,7 @@ CONTAINS
 !      INTEGER                                        :: L                    ! counter for index in LineWrOutput
       INTEGER                                        :: LineNumOuts          ! number of entries in LineWrOutput for each line
       INTEGER                                        :: RodNumOuts           ! for Rods ... redundant <<<
-      CHARACTER(200)                                 :: Frmt                 ! a string to hold a format statement
+      CHARACTER(4000)                                 :: Frmt                 ! a string to hold a format statement
       INTEGER                                        :: ErrStat2
 
 
@@ -1267,6 +1267,10 @@ CONTAINS
                 WRITE(m%RodList(I)%RodUnOut,'('//TRIM(Int2LStr(3+3*m%RodList(I)%N))//'(A1,A15))', advance='no') &
                  ( p%Delim, '(N)', p%Delim, '(N)', p%Delim, '(N)', J=0,m%RodList(I)%N )
             END IF
+            IF (m%RodList(I)%OutFlagList(19) == 1) THEN
+                WRITE(m%RodList(I)%RodUnOut,'('//TRIM(Int2LStr(3+3*m%RodList(I)%N))//'(A1,A15))', advance='no') &
+                 ( p%Delim, '(N)', p%Delim, '(N)', p%Delim, '(N)', J=0,m%RodList(I)%N )
+            END IF
 
                
             
@@ -1362,7 +1366,7 @@ CONTAINS
       INTEGER                                :: L                           ! counter for index in LineWrOutput
       INTEGER                                :: LineNumOuts                 ! number of entries in LineWrOutput for each line
       INTEGER                                :: RodNumOuts                  !   same for Rods
-      CHARACTER(200)                         :: Frmt                        ! a string to hold a format statement
+      CHARACTER(4000)                        :: Frmt                        ! a string to hold a format statement
       REAL(DbKi)                             :: VOFsum
 
 
@@ -1905,22 +1909,43 @@ CONTAINS
               END DO
            END IF
 
-         ! Node Tangential fluid inertia force
+           ! Node Tangential fluid inertia force
            IF (m%RodList(I)%OutFlagList(16) == 1) THEN
              DO J = 0,m%RodList(I)%N  
                 DO K = 1,3
                   m%RodList(I)%RodWrOutput(L) = m%RodList(I)%Ap(K,J)
                   L = L+1
+                 END DO
               END DO
            END IF
-         ! Node Tangential fluid inertia force
-           IF (m%RodList(I)%OutFlagList(16) == 1) THEN
+
+            ! Node Axial fluid inertia force
+           IF (m%RodList(I)%OutFlagList(17) == 1) THEN
              DO J = 0,m%RodList(I)%N  
                 DO K = 1,3
-                  m%RodList(I)%RodWrOutput(L) = m%RodList(I)%Ap(K,J)
+                  m%RodList(I)%RodWrOutput(L) = m%RodList(I)%Aq(K,J)
                   L = L+1
+                END DO
               END DO
            END IF
+            ! Node Transverse drag forces
+           IF (m%RodList(I)%OutFlagList(18) == 1) THEN
+             DO J = 0,m%RodList(I)%N  
+                DO K = 1,3
+                  m%RodList(I)%RodWrOutput(L) = m%RodList(I)%Dp(K,J)
+                  L = L+1
+                END DO
+              END DO
+           END IF
+           ! Node Tangential drag forces
+           IF (m%RodList(I)%OutFlagList(19) == 1) THEN
+             DO J = 0,m%RodList(I)%N  
+                DO K = 1,3
+                  m%RodList(I)%RodWrOutput(L) = m%RodList(I)%Dq(K,J)
+                  L = L+1
+              END DO
+           END DO
+         END IF
            
         !   ! Node curvatures
         !   IF (m%RodList(I)%OutFlagList(8) == 1) THEN

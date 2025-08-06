@@ -112,7 +112,7 @@ CONTAINS
       Rod%Ud   = 0.0_DbKi
       Rod%zeta = 0.0_DbKi
       Rod%PDyn = 0.0_DbKi
-      Rod%VOF = 0.0_DbKi
+      Rod%VOF  = 0.0_DbKi
 
       ! ------------------------- set some geometric properties and the starting kinematics -------------------------
 
