@@ -210,7 +210,7 @@ CONTAINS
       
          states(1:3)   = 0.0_DbKi     ! zero velocities for initialization
          states(4:6)   = Rod%q        ! rod direction unit vector
-         
+      
       end if
 
       ! note: this may also be called by a coupled rod (type = -1) in which case states will be empty
@@ -684,7 +684,7 @@ CONTAINS
                VOF0 = 0.0_DbKi
             END IF
          end if
-
+         
          Lsum = Lsum + dL            ! add length attributed to this node to the total
 
          ! get submerged cross sectional area and centroid for each node
