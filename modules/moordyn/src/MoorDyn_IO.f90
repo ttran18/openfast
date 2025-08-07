@@ -84,17 +84,17 @@ MODULE MoorDyn_IO
 
   ! List of units corresponding to the quantities parameters for QTypes
   CHARACTER(ChanLen), PARAMETER :: UnitList(0:26) = (/ &
-  "(s)       ",                             & !  0: Time
-  "(m)       ", "(m)       ", "(m)       ", & !  1–3:  PosX, PosY, PosZ
-  "(deg)     ", "(deg)     ", "(deg)     ", & !  4–6:  RotX, RotY, RotZ
-  "(m/s)     ", "(m/s)     ", "(m/s)     ", & !  7–9:  VelX, VelY, VelZ
-  "(deg/s)   ", "(deg/s)   ", "(deg/s)   ", & ! 10–12: RVelX, RVelY, RVelZ
-  "(m/s2)    ", "(m/s2)    ", "(m/s2)    ", & ! 13–15: AccX, AccY, AccZ
-  "(deg/s2)  ", "(deg/s2)  ", "(deg/s2)  ", & ! 16–18: RAccX, RAccY, RAccZ
-  "(N)       ",                             & ! 19: Ten
-  "(N)       ", "(N)       ", "(N)       ", & ! 20–22: FX, FY, FZ
-  "(Nm)      ", "(Nm)      ", "(Nm)      ", & ! 23–25: MX, MY, MZ
-  "(frac)    "                             & ! 26: Sub
+                                 "(s)       ",                             & !  0: Time
+                                 "(m)       ", "(m)       ", "(m)       ", & !  1–3:  PosX, PosY, PosZ
+                                 "(deg)     ", "(deg)     ", "(deg)     ", & !  4–6:  RotX, RotY, RotZ
+                                 "(m/s)     ", "(m/s)     ", "(m/s)     ", & !  7–9:  VelX, VelY, VelZ
+                                 "(deg/s)   ", "(deg/s)   ", "(deg/s)   ", & ! 10–12: RVelX, RVelY, RVelZ
+                                 "(m/s2)    ", "(m/s2)    ", "(m/s2)    ", & ! 13–15: AccX, AccY, AccZ
+                                 "(deg/s2)  ", "(deg/s2)  ", "(deg/s2)  ", & ! 16–18: RAccX, RAccY, RAccZ
+                                 "(N)       ",                             & ! 19: Ten
+                                 "(N)       ", "(N)       ", "(N)       ", & ! 20–22: FX, FY, FZ
+                                 "(Nm)      ", "(Nm)      ", "(Nm)      ", & ! 23–25: MX, MY, MZ
+                                 "(frac)    "                             & ! 26: Sub
 /)                     
 
   CHARACTER(28), PARAMETER  :: OutPFmt = "( I4, 3X,A 10,1 X, A10 )"   ! Output format parameter output list.
@@ -1909,7 +1909,7 @@ CONTAINS
               END DO
            END IF
 
-           ! Node Tangential fluid inertia force
+           ! Node tangential fluid inertial force
            IF (m%RodList(I)%OutFlagList(16) == 1) THEN
              DO J = 0,m%RodList(I)%N  
                 DO K = 1,3
@@ -1919,7 +1919,7 @@ CONTAINS
               END DO
            END IF
 
-            ! Node Axial fluid inertia force
+           ! Node transverse fluid inertia forc
            IF (m%RodList(I)%OutFlagList(17) == 1) THEN
              DO J = 0,m%RodList(I)%N  
                 DO K = 1,3
@@ -1928,7 +1928,8 @@ CONTAINS
                 END DO
               END DO
            END IF
-            ! Node Transverse drag forces
+
+           ! Node transverse drag forces
            IF (m%RodList(I)%OutFlagList(18) == 1) THEN
              DO J = 0,m%RodList(I)%N  
                 DO K = 1,3
@@ -1937,6 +1938,7 @@ CONTAINS
                 END DO
               END DO
            END IF
+
            ! Node Tangential drag forces
            IF (m%RodList(I)%OutFlagList(19) == 1) THEN
              DO J = 0,m%RodList(I)%N  

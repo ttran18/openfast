@@ -1246,7 +1246,7 @@ CONTAINS
                   ! per node, 1 component
                   IF ( scan( LineOutString, 'W') > 0 )  m%RodList(l)%OutFlagList(10) = 1   ! node weight/buoyancy (positive up)
                   ! Extended flags outputs
-                  IF ( scan( LineOutString, 'A') > 0 )  m%RodList(l)%OutFlagList(16) = 1   ! Tangential fluid inertia force (Ap)
+                  IF ( scan( LineOutString, 'A') > 0 )  m%RodList(l)%OutFlagList(16) = 1   ! Transverse fluid inertia force (Ap)
                   IF ( scan( LineOutString, 'a') > 0 )  m%RodList(l)%OutFlagList(17) = 1   ! Axial fluid inertia force (Aq)
                   IF ( scan( LineOutString, 'X') > 0 )  m%RodList(l)%OutFlagList(18) = 1   ! Transverse drag forces (Dp)
                   IF ( scan( LineOutString, 'Y') > 0 )  m%RodList(l)%OutFlagList(19) = 1   ! Tangential drag forces (Dq)
