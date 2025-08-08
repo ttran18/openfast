@@ -3081,7 +3081,7 @@ SUBROUTINE SetTowerParameters( p, InputFileData, ErrStat, ErrMsg )
 
          ! Add contributions from concentrated masses. Find the tower element on which the concentrated mass is located.
       DO I=1,p%TwrNodes
-         IF ( (p%HNodesNorm(I)+0.5*p%DHNodes(I)/p%TwrFlexL) > InputFileData%TwCMassHtFract(J) ) THEN
+         IF ( (p%HNodesNorm(I)+0.5*p%DHNodes(I)/p%TwrFlexL) >= InputFileData%TwCMassHtFract(J) ) THEN
             EXIT
          END IF
       END DO
