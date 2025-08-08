@@ -1025,7 +1025,7 @@ subroutine AWAE_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitO
       end if
    end do
 
-      ! XZ plane slices
+      ! YZ plane slices
    call AllocAry(p%OutDisWindXvalid,p%NOutDisWindYZ,'p%OutDisWindXvalid', ErrStat2, ErrMsg2); if(Failed()) return;
    p%OutDisWindXvalid = .true.
    do i = 1,p%NOutDisWindYZ
