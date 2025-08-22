@@ -151,6 +151,28 @@
 			<FileConfiguration Name="Debug|x64">
 				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration></File>
+		<File RelativePath="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Registry.txt">
+			<FileConfiguration Name="Release_OpenMP|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug_Double|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_OpenMP_Double|x64">
+				<Tool Name="VFCustomBuildTool" CommandLine="call ..\RunRegistry.bat ADI_cbind" Description="Running Registry for ADI_cbind" Outputs="..\..\modules\aerodyn\src\AeroDyn_Inflow_C_Binding_Types.f90"/></FileConfiguration></File>
+		<File RelativePath="..\..\modules\AeroDyn\src\AeroDyn_Inflow_C_Binding_Types.f90">
+			<FileConfiguration Name="Debug_Double|Win32">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug_Double|x64">
 				<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration></File></Filter>
 		<File RelativePath="..\..\modules\AeroDyn\src\AeroDyn_Inflow.f90">
 			<FileConfiguration Name="Debug|Win32">
