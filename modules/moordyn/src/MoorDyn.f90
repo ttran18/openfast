@@ -1260,10 +1260,6 @@ CONTAINS
                   IF (SUM(m%RodList(l)%OutFlagList) > 0)   m%RodList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
 
-
-                  ! specify IdNum of line for error checking
-                  m%RodList(l)%IdNum = l  
-
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Rod"//trim(num2lstr(m%RodList(l)%IdNum))//":"
                      write(p%UnLog, '(A15,I2)'   ) "   ID     : ", m%RodList(l)%IdNum
@@ -1274,7 +1270,7 @@ CONTAINS
 
                   ! check for sequential IdNums
                   IF ( m%RodList(l)%IdNum .NE. l ) THEN
-                     CALL SetErrStat( ErrID_Fatal, 'Line numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
+                     CALL SetErrStat( ErrID_Fatal, 'Rod numbers must be sequential starting from 1.', ErrStat, ErrMsg, RoutineName )
                      CALL CleanUp()
                      RETURN
                   END IF
@@ -1649,9 +1645,6 @@ CONTAINS
                   IF (SUM(m%LineList(l)%OutFlagList) > 0)   m%LineList(l)%OutFlagList(1) = 1  ! this first entry signals whether to create any output file at all
                   ! the above letter-index combinations define which OutFlagList entry corresponds to which output type
 
-
-                  ! specify IdNum of line for error checking
-                  m%LineList(l)%IdNum = l  
 
                   if (p%writeLog > 1) then
                      write(p%UnLog, '(A)'        ) "  - Line"//trim(num2lstr(m%LineList(l)%IdNum))//":"
