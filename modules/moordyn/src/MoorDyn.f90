@@ -157,7 +157,7 @@ CONTAINS
       CHARACTER(*), PARAMETER       :: RoutineName = 'MD_Init'
 
       
-
+      ! Initialize Err stat
       ErrStat = ErrID_None
       ErrMsg  = ""
       m%zeros6 = 0.0_DbKi
@@ -238,13 +238,9 @@ CONTAINS
       !            read input file and create cross-referenced mooring system objects
       !---------------------------------------------------------------------------------------------
       
-      
-      ! Initialize ErrStat
-      ErrStat = ErrID_None
-      ErrMsg  = ""
 
 
-      CALL WrScr( '   Parsing MoorDyn input file: '//trim(InitInp%FileName) )
+      CALL WrScr( '  Parsing MoorDyn input file: '//trim(InitInp%FileName) )
 
 
       ! -----------------------------------------------------------------
@@ -288,7 +284,12 @@ CONTAINS
       
       do while ( i <= FileInfo_In%NumLines )
 
-         ! TODO: check for Echo flag and if so, throw warning suggesting wrtielog
+         if (INDEX(Line, "ECHO") > 0) then
+            ! check for Echo flag and if so, throw message suggesting write log
+            ErrStat2 = ErrID_Info
+            ErrMsg2 = 'MoorDyn does not support ECHO. Instead, enable the log file by setting WriteLog > 0.'
+            CALL CheckError( ErrStat2, ErrMsg2 )
+         end if
 
          if (INDEX(Line, "---") > 0) then ! look for a header line
 
@@ -437,10 +438,10 @@ CONTAINS
                      read (OptValue,*) p%writeLog
                      if (p%writeLog > 0) then   ! if not zero, open a log file for output
                         CALL GetNewUnit( p%UnLog )
-                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat, ErrMsg )
-                        IF ( ErrStat > AbortErrLev ) THEN
-                           ErrMsg = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg)
-                           RETURN
+                        CALL OpenFOutFile ( p%UnLog, TRIM(p%RootName)//'.log', ErrStat2, ErrMsg2 )
+                        IF ( ErrStat2 > AbortErrLev ) THEN
+                           ErrMsg2 = ' Failed to open MoorDyn log file: '//TRIM(ErrMsg2)
+                           CALL CheckError( ErrStat2, ErrMsg2 ); IF (ErrStat >= AbortErrLev) RETURN
                         END IF
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "MoorDyn v2 log file with output level "//TRIM(Num2LStr(p%writeLog))
                         write(p%UnLog,'(A)', IOSTAT=ErrStat2) "Note: options above the writeLog line in the input file will not be recorded."
@@ -489,7 +490,9 @@ CONTAINS
                   else if ( OptString == 'DISABLEOUTTIME') then
                      read (OptValue,*) p%disableOutTime
                   else
-                     CALL SetErrStat( ErrID_Warn, 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.', ErrStat, ErrMsg, RoutineName )
+                     ErrStat2 = ErrID_Warn
+                     ErrMsg2 = 'Unable to interpret input '//trim(OptString)//' in OPTIONS section.'
+                     CALL CheckError( ErrStat2, ErrMsg2 )
                   end if
 
                   nOpts = nOpts + 1
@@ -2896,7 +2899,7 @@ CONTAINS
          ENDIF
       endif
       
-      CALL WrScr('   MoorDyn initialization completed.')
+      CALL WrScr('  MoorDyn initialization completed.')
       if (p%writeLog > 0) then
          write(p%UnLog, '(A)') NewLine//"MoorDyn initialization completed."//NewLine
          if (ErrStat /= ErrID_None) then

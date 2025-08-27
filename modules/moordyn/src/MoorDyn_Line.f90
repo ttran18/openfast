@@ -375,7 +375,7 @@ CONTAINS
             Line%r(3,J) = Line%r(3,0) + (Line%r(3,N) - Line%r(3,0))*REAL(J, DbKi)/REAL(N, DbKi)
          END DO
 
-         CALL WrScr(' Vertical initial profile for Line '//trim(Num2LStr(Line%IdNum))//'.')
+         CALL WrScr('    Vertical initial profile for Line '//trim(Num2LStr(Line%IdNum))//'.')
 
       ELSE ! If the line is not vertical, solve for the catenary profile
 
@@ -396,9 +396,9 @@ CONTAINS
 
          ELSE ! if there is a problem with the catenary approach, just stretch the nodes linearly between fairlead and anchor
             ! CALL SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, ' Line_Initialize: Line '//trim(Num2LStr(Line%IdNum))//' ')
-            CALL WrScr('   Catenary solve of Line '//trim(Num2LStr(Line%IdNum))//' unsuccessful. Initializing as linear.')
+            CALL WrScr('    Catenary solve of Line '//trim(Num2LStr(Line%IdNum))//' unsuccessful. Initializing as linear.')
             IF (wordy == 1) THEN 
-               CALL WrScr('   Message from catenary solver: '//ErrMsg2)
+               CALL WrScr('    Message from catenary solver: '//ErrMsg2)
             ENDIF
 
             DO J = 0,N ! Loop through all nodes per line where the line position and tension can be output
@@ -579,7 +579,7 @@ CONTAINS
       IF ( ZF <  0.0 )  THEN   ! .TRUE. if the fairlead has passed below its anchor
          ZF = -ZF
          reverseFlag = .TRUE.
-         CALL WrScr(' Warning from catenary: Anchor point is above the fairlead point for Line '//trim(Num2LStr(Line%IdNum))//', consider changing.')
+         CALL WrScr('    Warning from catenary: Anchor point is above the fairlead point for Line '//trim(Num2LStr(Line%IdNum))//', consider changing.')
       ELSE 
          reverseFlag = .FALSE.
       ENDIF
