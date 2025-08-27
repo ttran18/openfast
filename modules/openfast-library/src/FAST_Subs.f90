@@ -196,7 +196,7 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
    END IF
 
    ! ... Open and read input files ...
-   ! also, set applicable farm paramters and turbine reference position also for graphics output
+   ! also, set applicable farm parameters and turbine reference position also for graphics output
    if (PRESENT(ExternInitData)) then
       p_FAST%FarmIntegration = ExternInitData%FarmIntegration
       p_FAST%TurbinePos = ExternInitData%TurbinePos
@@ -493,15 +493,14 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
 
       ! lidar
       Init%InData_IfW%LidarEnabled                 = .true.    ! allowed with OF, but not FF
-      Init%InData_IfW%lidar%Tmax                   = p_FAST%TMax
       if (p_FAST%CompElast == Module_SED) then
-         Init%InData_IfW%lidar%HubPosition = SED%y%HubPtMotion%Position(:,1)
+         Init%InData_IfW%HubPosition = SED%y%HubPtMotion%Position(:,1)
          Init%InData_IfW%RadAvg = Init%OutData_SED%BladeLength
       elseif ( p_FAST%CompElast == Module_ED ) then
-         Init%InData_IfW%lidar%HubPosition = ED%y%HubPtMotion%Position(:,1)
+         Init%InData_IfW%HubPosition = ED%y%HubPtMotion%Position(:,1)
          Init%InData_IfW%RadAvg = Init%OutData_ED%BladeLength
       elseif ( p_FAST%CompElast == Module_BD ) then
-         Init%InData_IfW%lidar%HubPosition = ED%y%HubPtMotion%Position(:,1)
+         Init%InData_IfW%HubPosition = ED%y%HubPtMotion%Position(:,1)
          Init%InData_IfW%RadAvg = TwoNorm(BD%y(1)%BldMotion%Position(:,1) - BD%y(1)%BldMotion%Position(:,BD%y(1)%BldMotion%Nnodes))
       end if
 
@@ -1134,6 +1133,13 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
    IF (p_FAST%CompMooring == Module_MAP) THEN
       !bjj: until we modify this, MAP requires HydroDyn to be used. (perhaps we could send air density from AeroDyn or something...)
 
+      ! If mode shape visualization requested when MAP is active, set error and return
+      if (p_FAST%WrVTK == VTK_ModeShapes) then
+         call SetErrStat(ErrID_Fatal, "Mode shape visualization is not supported when using MAP.", ErrStat, ErrMsg, RoutineName)
+         call Cleanup()
+         return
+      end if
+
       CALL WrScr(NewLine) !bjj: I'm printing two blank lines here because MAP seems to be writing over the last line on the screen.
 
 !      Init%InData_MAP%rootname          =  p_FAST%OutFileRoot        ! Output file name
@@ -1196,6 +1202,9 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
 
       Init%InData_MD%Linearize = p_FAST%Linearize
       if (p_FAST%WrVTK /= VTK_None) Init%InData_MD%VisMeshes=.true.
+
+      ! Assign the seastate pointer here
+      Init%InData_MD%WaveField => Init%OutData_SeaSt%WaveField
 
       CALL MD_Init( Init%InData_MD, MD%Input(1), MD%p, MD%x(STATE_CURR), MD%xd(STATE_CURR), MD%z(STATE_CURR), &
                     MD%OtherSt(STATE_CURR), MD%y, MD%m, p_FAST%dt_module( MODULE_MD ), Init%OutData_MD, ErrStat2, ErrMsg2 )
@@ -1507,31 +1516,14 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
 
 
 
-      IF ( p_FAST%CompInflow == Module_IfW ) THEN !assign the number of gates to ServD
-         if (allocated(IfW%y%lidar%LidSpeed)) then    ! make sure we have the array allocated before setting it
-            CALL AllocAry(Init%InData_SrvD%LidSpeed, size(IfW%y%lidar%LidSpeed), 'Init%InData_SrvD%LidSpeed',     errStat2, ErrMsg2)
-            CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-            Init%InData_SrvD%LidSpeed = IfW%y%lidar%LidSpeed
-         endif
-         if (allocated(IfW%y%lidar%MsrPositionsX)) then    ! make sure we have the array allocated before setting it
-            CALL AllocAry(Init%InData_SrvD%MsrPositionsX, size(IfW%y%lidar%MsrPositionsX), 'Init%InData_SrvD%MsrPositionsX',     errStat2, ErrMsg2)
-            CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-            Init%InData_SrvD%MsrPositionsX = IfW%y%lidar%MsrPositionsX
-         endif
-         if (allocated(IfW%y%lidar%MsrPositionsY)) then    ! make sure we have the array allocated before setting it
-            CALL AllocAry(Init%InData_SrvD%MsrPositionsY, size(IfW%y%lidar%MsrPositionsY), 'Init%InData_SrvD%MsrPositionsY',     errStat2, ErrMsg2)
-            CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-            Init%InData_SrvD%MsrPositionsY = IfW%y%lidar%MsrPositionsY
-         endif
-         if (allocated(IfW%y%lidar%MsrPositionsZ)) then    ! make sure we have the array allocated before setting it
-            CALL AllocAry(Init%InData_SrvD%MsrPositionsZ, size(IfW%y%lidar%MsrPositionsZ), 'Init%InData_SrvD%MsrPositionsZ',     errStat2, ErrMsg2)
-            CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
-            Init%InData_SrvD%MsrPositionsZ = IfW%y%lidar%MsrPositionsZ
-         endif
+      IF ( p_FAST%CompInflow == Module_IfW ) THEN ! assign the number of gates to ServD
          Init%InData_SrvD%SensorType    = IfW%p%lidar%SensorType
          Init%InData_SrvD%NumBeam       = IfW%p%lidar%NumBeam
          Init%InData_SrvD%NumPulseGate  = IfW%p%lidar%NumPulseGate
-         Init%InData_SrvD%PulseSpacing  = IfW%p%lidar%PulseSpacing
+      else
+         Init%InData_SrvD%SensorType    = 0
+         Init%InData_SrvD%NumBeam       = 0
+         Init%InData_SrvD%NumPulseGate  = 0
       END IF
 
       
@@ -2422,7 +2414,7 @@ SUBROUTINE FAST_InitOutput( p_FAST, y_FAST, Init, ErrStat, ErrMsg )
    !......................................................
    ! Set the number of output columns from each module
    !......................................................
-   y_FAST%numOuts = 0    ! Inintialize entire array
+   y_FAST%numOuts = 0    ! Initialize entire array
 
    IF ( ALLOCATED( Init%OutData_IfW%WriteOutputHdr  ) ) y_FAST%numOuts(Module_IfW)  = SIZE(Init%OutData_IfW%WriteOutputHdr)
    IF ( ALLOCATED( Init%OutData_ExtInfw%WriteOutputHdr ) ) y_FAST%numOuts(Module_ExtInfw) = SIZE(Init%OutData_ExtInfw%WriteOutputHdr)
@@ -3660,7 +3652,7 @@ END DO
       IF (p%WrVTK == VTK_ModeShapes) THEN
          p%n_VTKTime = 1
       ELSE IF (TmpTime > p%TMax) THEN
-         p%n_VTKTime = HUGE(p%n_VTKTime)
+         p%n_VTKTime = NINT( p%TMax  / p%DT )   ! write at init and last step only
       ELSE
          p%n_VTKTime = NINT( TmpTime / p%DT )
          ! I'll warn if p%n_VTKTime*p%DT is not TmpTime
@@ -10010,6 +10002,12 @@ SUBROUTINE FAST_CreateCheckpoint_T(t_initial, n_t_global, NumTurbines, Turbine, 
       ! init error status
    ErrStat = ErrID_None
    ErrMsg  = ""
+
+   ! Writing checkpoint files is not supported when using MAP
+   if (Turbine%p_FAST%CompMooring == Module_MAP) then
+      call SetErrStat(ErrID_Fatal, "Writing checkpoint files is not supported when using MAP.", ErrStat, ErrMsg, RoutineName)
+      return
+   end if
       
    FileName    = TRIM(CheckpointRoot)//'.chkp'
    DLLFileName = TRIM(CheckpointRoot)//'.dll.chkp'

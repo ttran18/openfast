@@ -25,6 +25,7 @@ Module SubDyn
    
    USE NWTC_Library
    USE SubDyn_Types
+   USE SubDyn_Output_Params, only: MaxOutPts
    USE SubDyn_Output
    USE SubDyn_Tests
    USE SD_FEM
@@ -734,7 +735,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       if (p%GuyanLoadCorrection.and.p%Floating) then
          ! --- Special case for floating with extra moment, we use "rotated loads" m%F_L previously computed
          ! Contributions from external forces - Note: T_I is in the rotated frame
-         call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+         call GetExtForceOnInterfaceDOF(p, m, F_I)
          Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
          Y1_Guy_R =   matmul(RRb2g, Y1_Guy_R)
          Y1_Guy_L = - matmul(p%D1_142, m%F_L) ! = - (- T_I^T . Phi_Rb^T) F_L, rotated loads
@@ -744,7 +745,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       else ! .not.(p%GuyanLoadCorrection.and.p%Floating)
          ! Compute "non-rotated" external force on internal (F_L) and interface nodes (F_I)
          call GetExtForceOnInternalDOF(u, p, x, m, m%F_L, ErrStat2, ErrMsg2, GuyanLoadCorrection=(p%GuyanLoadCorrection), RotateLoads=.False.); if(Failed()) return
-         call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+         call GetExtForceOnInterfaceDOF(p, m, F_I)
          ! Contributions from external forces
          Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
          Y1_Guy_L = - matmul(p%D1_142, m%F_L) ! = - (- T_I^T . Phi_Rb^T) F_L, non-rotated loads
@@ -760,7 +761,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       ! 
       ! ! Compute "non-rotated" external force on internal (F_L) and interface nodes (F_I)
       ! call GetExtForceOnInternalDOF(u, p, x, m, m%F_L, ErrStat2, ErrMsg2, GuyanLoadCorrection=(p%GuyanLoadCorrection), RotateLoads=.False.); if(Failed()) return
-      ! call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+      ! call GetExtForceOnInterfaceDOF(p, m, F_I)
       !
       ! ! Contributions from external forces
       ! Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
@@ -1560,7 +1561,7 @@ END IF
 ! OutList - list of requested parameters to output to a file
 CALL ReadCom( UnIn, SDInputFile, 'SSOutList',ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 
-ALLOCATE(Init%SSOutList(MaxOutChs), STAT=ErrStat2)
+ALLOCATE(Init%SSOutList(MaxOutPts + p%OutAllInt*p%OutAllDims), STAT=ErrStat2)
 If (Check( ErrStat2 /= ErrID_None ,'Error allocating SSOutList arrays')) return
 CALL ReadOutputList ( UnIn, SDInputFile, Init%SSOutList, p%NumOuts, 'SSOutList', 'List of outputs requested', ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 CALL CleanUp()
@@ -3478,17 +3479,23 @@ END SUBROUTINE GetExtForceOnInternalDOF
 
 !------------------------------------------------------------------------------------------------------
 !> Construct force vector on interface DOF (I) 
-!! NOTE: This function should only be called after GetExtForceOnInternalDOF 
-SUBROUTINE GetExtForceOnInterfaceDOF(  p, Fext, F_I)
+!! NOTE: This function should only be called after GetExtForceOnInternalDOF, which populates Fext
+SUBROUTINE GetExtForceOnInterfaceDOF( p, m, F_I )
    type(SD_ParameterType),   intent(in  ) :: p ! Parameters
-   real(ReKi), dimension(:), intent(in  ) :: Fext !< Vector of external forces on un-reduced DOF
+   type(SD_MiscVarType),     intent(in  ) :: m ! Misc, for storage optimization of Fext and Fext_red
    real(ReKi)            ,   intent(out ) :: F_I(6*p%nNodes_I)          !< External force on interface DOF
    integer :: iSDNode, startDOF, I
-   DO I = 1, p%nNodes_I 
-      iSDNode = p%Nodes_I(I,1)
-      startDOF = (I-1)*6 + 1 ! NOTE: for now we have 6 DOF per interface nodes
-      F_I(startDOF:startDOF+5) = Fext(p%NodesDOF(iSDNode)%List(1:6)) !TODO try to use Fext_red
-   ENDDO
+
+   IF (p%reduced) THEN
+      F_I = m%Fext_red(p%IDI_Rb)
+   ELSE
+      DO I = 1, p%nNodes_I
+         iSDNode  = p%Nodes_I(I,1)
+         startDOF = (I-1)*6 + 1 ! NOTE: for now we have 6 DOF per interface nodes
+         F_I(startDOF:startDOF+5) = m%Fext(p%NodesDOF(iSDNode)%List(1:6))
+      ENDDO
+   END IF
+
 END SUBROUTINE GetExtForceOnInterfaceDOF
 
 
