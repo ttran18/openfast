@@ -195,7 +195,7 @@ CONTAINS
          READ(UnCoef,*,IOSTAT=ErrStat4) nGridY_string, nGridY  ! read in the third line as the number of y values in the BathGrid
 
          ! error check that the number of x and y values were read in correctly
-         IF (ErrStat4 > ErrID_None) THEN
+         IF (ErrStat4 /= 0) THEN
             CALL SetErrStat(ErrID_Fatal, "Error reading the number of x and y values from the bathymetry file "//TRIM(inputString), ErrStat3, ErrMsg3, 'MDIO_getBathymetry')
             CLOSE (UnCoef)
             RETURN
@@ -223,7 +223,7 @@ CONTAINS
                READ(Line2, *,IOSTAT=ErrStat4) BathGrid_Ys(I-1), BathGrid(I-1,:)
             ENDIF
 
-            IF (ErrStat4 > ErrID_None) THEN
+            IF (ErrStat4 /= 0) THEN
                CALL SetErrStat(ErrID_Fatal, "Error reading the bathymetry file "//TRIM(inputString)//" at table line "//trIM(Num2Lstr(I)), ErrStat3, ErrMsg3, 'MDIO_getBathymetry')
                CLOSE (UnCoef)
                RETURN
