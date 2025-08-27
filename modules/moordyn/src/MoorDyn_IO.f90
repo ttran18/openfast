@@ -207,7 +207,7 @@ CONTAINS
          ALLOCATE(BathGrid_Ys(nGridY), STAT=ErrStat4)
 
          ! Error check that allocation was successful
-         IF (ErrStat4 > ErrID_None) THEN
+         IF (ErrStat4 /= 0) THEN
             CALL SetErrStat(ErrID_Fatal, "Error allocating memory for the bathymetry grid from file "//TRIM(inputString), ErrStat3, ErrMsg3, 'MDIO_getBathymetry')
             CLOSE (UnCoef)
             RETURN
