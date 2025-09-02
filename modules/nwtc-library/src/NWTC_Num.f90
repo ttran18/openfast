@@ -346,8 +346,8 @@ CONTAINS
    
    DelAngle = OldAngle - NewAngle
 
-   n = int(DelAngle / TwoPi_R4)
-   NewAngle = NewAngle + n * TwoPi_R4
+   n = int(DelAngle / TwoPi_R8)
+   NewAngle = NewAngle + n * TwoPi_R8
    DelAngle = OldAngle - NewAngle
    
    i = 0
