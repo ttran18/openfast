@@ -166,7 +166,8 @@ IMPLICIT NONE
     REAL(ReKi)  :: PtfmRefzt = 0.0_ReKi      !< Vertical distance from the ground level [onshore], MSL [offshore wind or floating MHK], or seabed [fixed MHK] to the platform reference point [meters]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: TipMass      !< Tip-brake masses [kg]
     REAL(ReKi)  :: HubMass = 0.0_ReKi      !< Hub mass [kg]
-    REAL(ReKi)  :: HubIner = 0.0_ReKi      !< Hub inertia about teeter axis (2-blader) or rotor axis (3-blader) [kg m^2]
+    REAL(ReKi)  :: HubIner = 0.0_ReKi      !< Hub inertia about rotor axis (2 or 3-blader) [kg m^2]
+    REAL(ReKi)  :: HubIner_Teeter = 0.0_ReKi      !< Hub inertia about teeter axis (2-blader) [kg m^2]
     REAL(ReKi)  :: GenIner = 0.0_ReKi      !< Generator inertia about HSS [kg m^2]
     REAL(ReKi)  :: NacMass = 0.0_ReKi      !< Nacelle mass [kg]
     REAL(ReKi)  :: NacYIner = 0.0_ReKi      !< Nacelle yaw inertia [kg m^2]
@@ -1671,6 +1672,7 @@ subroutine ED_CopyInputFile(SrcInputFileData, DstInputFileData, CtrlCode, ErrSta
    end if
    DstInputFileData%HubMass = SrcInputFileData%HubMass
    DstInputFileData%HubIner = SrcInputFileData%HubIner
+   DstInputFileData%HubIner_Teeter = SrcInputFileData%HubIner_Teeter
    DstInputFileData%GenIner = SrcInputFileData%GenIner
    DstInputFileData%NacMass = SrcInputFileData%NacMass
    DstInputFileData%NacYIner = SrcInputFileData%NacYIner
@@ -2091,6 +2093,7 @@ subroutine ED_PackInputFile(RF, Indata)
    call RegPackAlloc(RF, InData%TipMass)
    call RegPack(RF, InData%HubMass)
    call RegPack(RF, InData%HubIner)
+   call RegPack(RF, InData%HubIner_Teeter)
    call RegPack(RF, InData%GenIner)
    call RegPack(RF, InData%NacMass)
    call RegPack(RF, InData%NacYIner)
@@ -2292,6 +2295,7 @@ subroutine ED_UnPackInputFile(RF, OutData)
    call RegUnpackAlloc(RF, OutData%TipMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubIner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HubIner_Teeter); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%GenIner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacYIner); if (RegCheckErr(RF, RoutineName)) return

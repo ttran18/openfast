@@ -144,7 +144,8 @@ typedef	^	ED_InputFile	ReKi	PtfmCMzt	-	-	-	"Vertical distance from the ground le
 typedef	^	ED_InputFile	ReKi	PtfmRefzt	-	-	-	"Vertical distance from the ground level [onshore], MSL [offshore wind or floating MHK], or seabed [fixed MHK] to the platform reference point"	meters
 typedef	^	ED_InputFile	ReKi	TipMass	{:}	-	-	"Tip-brake masses"	kg
 typedef	^	ED_InputFile	ReKi	HubMass	-	-	-	"Hub mass"	kg
-typedef	^	ED_InputFile	ReKi	HubIner	-	-	-	"Hub inertia about teeter axis (2-blader) or rotor axis (3-blader)"	"kg m^2"
+typedef	^	ED_InputFile	ReKi	HubIner	-	-	-	"Hub inertia about rotor axis (2 or 3-blader)"	"kg m^2"
+typedef	^	ED_InputFile	ReKi	HubIner_Teeter	-	-	-	"Hub inertia about teeter axis (2-blader)"	"kg m^2"
 typedef	^	ED_InputFile	ReKi	GenIner	-	-	-	"Generator inertia about HSS"	"kg m^2"
 typedef	^	ED_InputFile	ReKi	NacMass	-	-	-	"Nacelle mass"	kg
 typedef	^	ED_InputFile	ReKi	NacYIner	-	-	-	"Nacelle yaw inertia"	"kg m^2"
