@@ -699,8 +699,8 @@ IMPLICIT NONE
     REAL(ReKi)  :: BoomMass = 0.0_ReKi      !< Tail boom mass [-]
     REAL(ReKi) , DIMENSION(:), ALLOCATABLE  :: FirstMom      !< First mass moment of inertia of blades wrt the root [-]
     REAL(ReKi)  :: GenIner = 0.0_ReKi      !< Generator inertia about HSS [-]
-    REAL(ReKi)  :: Hubg1Iner = 0.0_ReKi      !< Inertia of hub about g1-axis (rotor centerline) [-]
-    REAL(ReKi)  :: Hubg2Iner = 0.0_ReKi      !< Inertia of hub about g2-axis (transverse to the cyclinder and passing through its c.g.) [-]
+    REAL(ReKi)  :: Hubf1Iner = 0.0_ReKi      !< Inertia of hub about f1-axis (rotor centerline) [-]
+    REAL(ReKi)  :: Hubf2Iner = 0.0_ReKi      !< Inertia of hub about f2-axis (transverse to the hub and passing through its c.g.) [-]
     REAL(ReKi)  :: HubMass = 0.0_ReKi      !< Hub mass [-]
     REAL(ReKi)  :: Nacd2Iner = 0.0_ReKi      !< Inertia of nacelle about the d2-axis whose origin is the nacelle center of mass [-]
     REAL(ReKi)  :: NacMass = 0.0_ReKi      !< Nacelle mass [-]
@@ -5582,8 +5582,8 @@ subroutine ED_CopyParam(SrcParamData, DstParamData, CtrlCode, ErrStat, ErrMsg)
       DstParamData%FirstMom = SrcParamData%FirstMom
    end if
    DstParamData%GenIner = SrcParamData%GenIner
-   DstParamData%Hubg1Iner = SrcParamData%Hubg1Iner
-   DstParamData%Hubg2Iner = SrcParamData%Hubg2Iner
+   DstParamData%Hubf1Iner = SrcParamData%Hubf1Iner
+   DstParamData%Hubf2Iner = SrcParamData%Hubf2Iner
    DstParamData%HubMass = SrcParamData%HubMass
    DstParamData%Nacd2Iner = SrcParamData%Nacd2Iner
    DstParamData%NacMass = SrcParamData%NacMass
@@ -6469,8 +6469,8 @@ subroutine ED_PackParam(RF, Indata)
    call RegPack(RF, InData%BoomMass)
    call RegPackAlloc(RF, InData%FirstMom)
    call RegPack(RF, InData%GenIner)
-   call RegPack(RF, InData%Hubg1Iner)
-   call RegPack(RF, InData%Hubg2Iner)
+   call RegPack(RF, InData%Hubf1Iner)
+   call RegPack(RF, InData%Hubf2Iner)
    call RegPack(RF, InData%HubMass)
    call RegPack(RF, InData%Nacd2Iner)
    call RegPack(RF, InData%NacMass)
@@ -6740,8 +6740,8 @@ subroutine ED_UnPackParam(RF, OutData)
    call RegUnpack(RF, OutData%BoomMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpackAlloc(RF, OutData%FirstMom); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%GenIner); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%Hubg1Iner); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%Hubg2Iner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Hubf1Iner); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%Hubf2Iner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%HubMass); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%Nacd2Iner); if (RegCheckErr(RF, RoutineName)) return
    call RegUnpack(RF, OutData%NacMass); if (RegCheckErr(RF, RoutineName)) return
