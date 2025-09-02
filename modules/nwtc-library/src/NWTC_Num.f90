@@ -1062,7 +1062,7 @@ CONTAINS
 
    XOff = X - XAry(ILo)
    XOff2 = XOff * XOff
-   XOff3 = XOff3* XOff
+   XOff3 = XOff2 * XOff
 
    Res = Coef(ILo,:,0) + Coef(ILo,:,1)*XOff + Coef(ILo,:,2) * XOff2  + Coef(ILo,:,3)*XOff3
 
