@@ -1485,7 +1485,7 @@ CONTAINS
 !! Use DCM_SetLogMapForInterp (nwtc_num::dcm_setlogmapforinterp) instead of directly calling a specific routine in the generic interface. 
    SUBROUTINE DCM_SetLogMapForInterpD( tensor )
          
-   REAL(R8Ki),     INTENT(INOUT) :: tensor(:,:)       !< a 3xn matrix, whose columns represent individual skew-symmmetric matrices. On exit,
+   REAL(R8Ki),     INTENT(INOUT) :: tensor(:,:)       !< a 3xn matrix, whose columns represent individual skew-symmetric matrices. On exit,
                                                       !! each column will be within \f$2\pi\f$ of the previous column, allowing for interpolation 
                                                       !! of the quantities.
 
