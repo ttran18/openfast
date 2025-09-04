@@ -9554,7 +9554,7 @@ SUBROUTINE ExitThisProgram( p_FAST, y_FAST, m_FAST, ED, SED, BD, SrvD, AD, ADsk,
    end if
 
    IF (p_FAST%WrSttsTime .and. PrintRunTimes) THEN
-      CALL RunTimes( m_FAST%StrtTime, m_FAST%UsrTime1, m_FAST%SimStrtTime, m_FAST%UsrTime2, m_FAST%t_global, UnSum=y_FAST%UnSum, DescStrIn=p_FAST%TDesc )
+      CALL RunTimes( m_FAST%StrtTime, m_FAST%UsrTime1, m_FAST%SimStrtTime, m_FAST%UsrTime2, m_FAST%t_global, UnSum=y_FAST%UnSum, DescStrIn=p_FAST%TDesc, useCases=p_FAST%CompAeroMaps )
    END IF
    IF (y_FAST%UnSum > 0) THEN
       CLOSE(y_FAST%UnSum)
