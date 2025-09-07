@@ -509,7 +509,7 @@ struct Registry
         auto c_double = std::make_shared<DataType>("c_double","REAL(c_double)",    DataType::Tag::Real, 64);
         auto c_char   = std::make_shared<DataType>("c_char",  "CHARACTER(c_char)", DataType::Tag::Character);
 
-        // Map of ISO_C_BINIDNG types
+        // Map of ISO_C_BINDING types
         this->data_types_isocbinding = std::map<std::string, std::shared_ptr<DataType>, ci_less>{
             {"c_int",c_int},
             {"c_float",c_float},
