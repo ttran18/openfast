@@ -506,7 +506,7 @@ struct Registry
         // Basic iso_c_binding types
         auto c_int    = std::make_shared<DataType>("c_int",   "INTEGER(c_int)",    DataType::Tag::Integer, 32);
         auto c_float  = std::make_shared<DataType>("c_float", "REAL(c_float)",     DataType::Tag::Real, 32);
-        auto c_double = std::make_shared<DataType>("c_double","REAL(c_double)",    DataType::Tag::Real, 32);
+        auto c_double = std::make_shared<DataType>("c_double","REAL(c_double)",    DataType::Tag::Real, 64);
         auto c_char   = std::make_shared<DataType>("c_char",  "CHARACTER(c_char)", DataType::Tag::Character);
 
         // Map of ISO_C_BINIDNG types
