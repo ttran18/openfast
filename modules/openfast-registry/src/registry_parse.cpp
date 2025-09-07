@@ -95,6 +95,15 @@ int Registry::parse_line(const std::string &line, std::vector<std::string> &fiel
         return EXIT_SUCCESS;
 
     //--------------------------------------------------------------------------
+    // ISO C BINDING
+    //   put a literal "USE ISO_C_BINDING" at start of file and allow c_* types
+    //--------------------------------------------------------------------------
+    if (fields.size() == 1 && tolower(fields[0]).compare("iso_c_binding") == 0) 
+    {
+        this->use_isocbinding = true;
+        return EXIT_SUCCESS;
+    }
+    //--------------------------------------------------------------------------
     // Include Line
     //--------------------------------------------------------------------------
 
