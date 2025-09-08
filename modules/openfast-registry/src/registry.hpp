@@ -455,6 +455,10 @@ struct Registry
         auto R8Ki = std::make_shared<DataType>("R8Ki", "REAL(R8Ki)", DataType::Tag::Real, 64);
         auto DbKi = std::make_shared<DataType>("DbKi", "REAL(DbKi)", DataType::Tag::Real, 64);
         auto logical = std::make_shared<DataType>("Logical", "LOGICAL", DataType::Tag::Logical);
+        auto c_int    = std::make_shared<DataType>("c_int",   "INTEGER(c_int)",    DataType::Tag::Integer, 32);
+        auto c_float  = std::make_shared<DataType>("c_float", "REAL(c_float)",     DataType::Tag::Real, 32);
+        auto c_double = std::make_shared<DataType>("c_double","REAL(c_double)",    DataType::Tag::Real, 64);
+        auto c_char   = std::make_shared<DataType>("c_char",  "CHARACTER(c_char)", DataType::Tag::Character);
 
         // Derived types
         auto mesh = std::make_shared<DataType>(nullptr, "MeshType", "MeshType", "MeshType");
@@ -475,6 +479,10 @@ struct Registry
             {"logical", logical},
             {"meshtype", mesh},
             {"dll_type", dll},
+            {"c_int",c_int},
+            {"c_float",c_float},
+            {"c_double",c_double},
+            {"c_char",c_char},
         };
 
         this->interface_map = std::map<std::string, std::shared_ptr<InterfaceData>, ci_less>{
@@ -503,13 +511,7 @@ struct Registry
              std::make_shared<InterfaceData>("PartialConstrStatePInputType", "dZdu", true)},
         };
 
-        // Basic iso_c_binding types
-        auto c_int    = std::make_shared<DataType>("c_int",   "INTEGER(c_int)",    DataType::Tag::Integer, 32);
-        auto c_float  = std::make_shared<DataType>("c_float", "REAL(c_float)",     DataType::Tag::Real, 32);
-        auto c_double = std::make_shared<DataType>("c_double","REAL(c_double)",    DataType::Tag::Real, 64);
-        auto c_char   = std::make_shared<DataType>("c_char",  "CHARACTER(c_char)", DataType::Tag::Character);
-
-        // Map of ISO_C_BINDING types
+        // Map of ISO_C_BINDING types (for checks only)
         this->data_types_isocbinding = std::map<std::string, std::shared_ptr<DataType>, ci_less>{
             {"c_int",c_int},
             {"c_float",c_float},
@@ -530,13 +532,11 @@ struct Registry
         std::shared_ptr<DataType> data_type;
 
         // if using ISO_C_BINDING, search these types first
-        if (this->use_isocbinding)
+        auto it = data_types_isocbinding.find(type_name);
+        if (it != data_types_isocbinding.end())
         {
-            auto it = data_types_isocbinding.find(type_name);
-            if (it != data_types_isocbinding.end())
-            {
-                return it->second;
-            }
+            this->use_isocbinding = true;
+            return it->second;
         }
 
         // Get map of data types to search
