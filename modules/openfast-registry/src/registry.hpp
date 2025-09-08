@@ -544,7 +544,7 @@ struct Registry
         auto &data_types = mod == nullptr ? this->data_types : mod->data_types;
 
         // Search for type in registry, return if found
-        auto it = data_types.find(type_name);
+        it = data_types.find(type_name);
         if (it != data_types.end())
         {
             return it->second;
