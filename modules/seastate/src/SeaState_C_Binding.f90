@@ -20,6 +20,7 @@
 MODULE SeaState_C_Binding
 
    USE ISO_C_BINDING
+   USE SeaSt_WaveField
    USE SeaState
    USE SeaState_Types
    USE SeaState_Output
@@ -34,10 +35,8 @@ MODULE SeaState_C_Binding
    PUBLIC :: SeaSt_C_CalcOutput
    PUBLIC :: SeaSt_C_End
    PUBLIC :: SeaSt_C_GetWaveFieldPointer
-!   PUBLIC :: SeaSt_C_GetFluidVel
-!   PUBLIC :: SeaSt_C_GetFluidAcc
-!   PUBLIC :: SeaSt_C_GetFluidLev
-!   PUBLIC :: SeaSt_C_GetFluidDensity
+   PUBLIC :: SeaSt_C_GetFluidVelAccDens
+   PUBLIC :: SeaSt_C_GetSurfElev
 
    !------------------------------------------------------------------------------------
    !  Version info for display
@@ -308,17 +307,112 @@ FUNCTION SeaSt_C_GetWaveFieldPointer() BIND (C, NAME='SeaSt_C_GetWaveFieldPointe
 END FUNCTION
 
 
-!subroutine SeaSt_C_GetFluidVelc
-!end subroutine SeaSt_C_GetFluidVel
-!
-!subroutine SeaSt_C_GetFluidAccc
-!end subroutine SeaSt_C_GetFluidAcc
-!
-!subroutine SeaSt_C_GetFluidLevc
-!end subroutine SeaSt_C_GetFluidLev
-!
-!subroutine SeaSt_C_GetFluidDensityc
-!end subroutine SeaSt_C_GetFluidDensity
+!> Get the fluid velocity, acceleration, node-in-water status, and density at time+position coordinate
+subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Density_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetFluidVelAccDens')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAccDens
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAccDens
+#endif
+   real(c_double),            intent(in   ) :: Time_C
+   real(c_float),             intent(in   ) :: Pos_c(3)
+   real(c_float),             intent(  out) :: Vel_c(3)
+   real(c_float),             intent(  out) :: Acc_c(3)
+   integer(c_int),            intent(  out) :: NodeInWater_C
+   real(c_float),             intent(  out) :: Density_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   real(DbKi)                 :: Time
+   real(ReKi)                 :: Pos(3)
+   real(SiKi)                 :: Vel(3)
+   real(SiKi)                 :: Acc(3)
+   logical                    :: forceNodeInWater
+!FIXME:dev-tc uncomment next line
+!   logical                    :: fetchDynCurrent
+   integer(IntKi)             :: nodeInWater
+
+   integer                    :: ErrStat     !< aggregated error status
+   character(ErrMsgLen)       :: ErrMsg      !< aggregated error message
+   integer                    :: ErrStat2    !< temporary error status  from a call
+   character(ErrMsgLen)       :: ErrMsg2     !< temporary error message from a call
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetFluidVelAccDens'
+
+   ! Initialize error handling
+   ErrStat  =  ErrID_None
+   ErrMsg   =  ""
+
+   ! convert position and time to fortran types
+   Time = real(Time_C, DbKi)
+   Pos = real(Pos_C, ReKi)
+
+   ! get wave field velocity and acceleration (current is included in this)
+   ! Notes:
+   !     - if node is out of water, velocity and acceleration are zero
+   !     - if position is outside the wave field boundary, it will simply return boundary edge value
+   !     - time must be positive or a fatal error occurs
+   call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, pos, forceNodeInWater, nodeInWater, Vel, Acc, ErrStat, ErrMsg )
+!FIXME:dev-tc use next line instead of above
+!   call WaveField_GetNodeWaveVelAcc( p%WaveField, m%WaveField_m, Time, pos, forceNodeInWater, fetchDynCurrent, nodeInWater, Vel, Acc, ErrStat, ErrMsg )
+
+   ! Store resulting velocity and acceleration as C type
+   Vel_c = real(Vel,c_float)
+   Acc_c = real(Acc,c_float)
+
+   ! Density value and node status to return
+   if (nodeInWater == 1_IntKi) then
+      NodeInWater_C = 1_c_int
+      Density_C = real(p%WaveField%WtrDens, c_float)
+   else
+      NodeInWater_C = 0_c_int
+      Density_C = 0.0_c_float
+   endif
+
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
+   return
+end subroutine SeaSt_C_GetFluidVelAccDens
+
+
+
+!> return the surface elevation at a point.
+subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetSurfElev')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetSurfElev
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetSurfElev
+#endif
+   real(c_double),            intent(in   ) :: Time_C
+   real(c_float),             intent(in   ) :: Pos_c(3)
+   real(c_float),             intent(  out) :: Elev_C
+   integer(c_int),            intent(  out) :: ErrStat_C
+   character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   real(DbKi)                 :: Time
+   real(ReKi)                 :: Pos(2)
+   real(SiKi)                 :: Elev
+   integer                    :: ErrStat     !< aggregated error status
+   character(ErrMsgLen)       :: ErrMsg      !< aggregated error message
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfElev'
+
+   ! Initialize error handling
+   ErrStat  =  ErrID_None
+   ErrMsg   =  ""
+
+   ! convert position and time to fortran types
+   Time = real(Time_C, DbKi)
+   Pos = real(Pos_C(1:2), ReKi)
+
+   ! get wave elevation (total combined first and second order)
+   ! Notes:
+   !     - if position is outside the wave field boundary, it will simply return boundary edge value
+   !     - time must be positive or a fatal error occurs
+   Elev = WaveField_GetNodeTotalWaveElev( p%WaveField, m%WaveField_m, Time, pos, ErrStat, ErrMsg )
+
+   ! Store resulting elevation as C type
+   Elev_C = real(Elev,c_float)
+
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
+   return
+
+end subroutine SeaSt_C_GetSurfElev
 
 
 end module SeaState_C_Binding
