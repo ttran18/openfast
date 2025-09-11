@@ -4305,7 +4305,9 @@ SUBROUTINE ValidatePrimaryData( InputFileData, BD4Blades, Linearize, MHK, ErrSta
    IF ( InputFileData%NacYIner < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'NacYIner must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF ( InputFileData%GenIner  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'GenIner must not be negative.',ErrStat,ErrMsg,RoutineName)
    IF ( InputFileData%HubIner  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'HubIner must not be negative.',ErrStat,ErrMsg,RoutineName)
-   IF ( InputFileData%HubIner_Teeter  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'HubIner_Teeter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   IF ( InputFileData%NumBl == 2 ) THEN
+     IF ( InputFileData%HubIner_Teeter  < 0.0_ReKi) call SetErrStat(ErrID_Fatal,'HubIner_Teeter must not be negative.',ErrStat,ErrMsg,RoutineName)
+   ENDIF
 
       ! Check that TowerHt is in the range [0,inf):
    IF ( MHK /= MHK_Floating ) THEN
