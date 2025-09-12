@@ -78,17 +78,22 @@ class SeaStateLib(OpenFASTInterfaceType):
         # flags
         self.debuglevel  = 0                # 0-4 levels
 
-#        # pointer to wavefield
-#       self.ss_pointer = c_void_p()
 
     def _initialize_routines(self):
-        self.SeaSt_C_Init.argtypes = [
-            POINTER(c_char_p),      # intent(in   ) :: InputFile_c(IntfStrLen)
-            POINTER(c_char_p),      # intent(in   ) :: OutRootName_c(IntfStrLen)
+        self.SeaSt_C_PreInit.argtypes = [
             POINTER(c_float),       # intent(in   ) :: Gravity_c
             POINTER(c_float),       # intent(in   ) :: WtrDens_c
             POINTER(c_float),       # intent(in   ) :: WtrDpth_c
             POINTER(c_float),       # intent(in   ) :: MSL2SWL_c
+            POINTER(c_int),         # intent(in   ) :: debuglevel
+            POINTER(c_int),         # intent(  out) :: ErrStat_C
+            POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+        ]
+        self.SeaSt_C_PreInit.restype = c_int
+
+        self.SeaSt_C_Init.argtypes = [
+            POINTER(c_char_p),      # intent(in   ) :: InputFile_c(IntfStrLen)
+            POINTER(c_char_p),      # intent(in   ) :: OutRootName_c(IntfStrLen)
             POINTER(c_int),         # intent(in   ) :: NSteps_c
             POINTER(c_float),       # intent(in   ) :: TimeInterval_c
             POINTER(c_int),         # intent(in   ) :: WaveElevSeriesFlag_c
@@ -182,13 +187,37 @@ class SeaStateLib(OpenFASTInterfaceType):
             print(message)
 
 
-    def seastate_init(
+    #FIXME: store these elsewhere
+    def seastate_preinit(
         self,
-        primary_ss_file,
         gravity: float = 9.80665,
         water_density: float = 1025,
         water_depth: float = 200,
         msl2swl: float = 0,
+    ):
+        """Set environment variables and general setup
+
+        Args:
+
+        Raises:
+            ValueError: If values are outside reasonable bounds
+            RuntimeError: If preinit fails 
+        """
+        self.SeaSt_C_PreInit(
+            byref(c_float(gravity)),
+            byref(c_float(water_density)),
+            byref(c_float(water_depth)),
+            byref(c_float(msl2swl)),
+            byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=all meshes)
+            byref(self.error_status_c),             # OUT <- error status code
+            self.error_message_c                    # OUT <- error message buffer
+        )
+        self.check_error()
+
+
+    def seastate_init(
+        self,
+        primary_ss_file,
         outrootname: str = "./seastate.SeaSt",
         wave_kinematics_mode: int = 0,
         n_steps: int = 801,
@@ -207,10 +236,6 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.SeaSt_C_Init(
             c_char_p(primary_ss_file.encode('utf-8')),
             c_char_p(outrootname.encode('utf-8')),
-            byref(c_float(gravity)),
-            byref(c_float(water_density)),
-            byref(c_float(water_depth)),
-            byref(c_float(msl2swl)),
             byref(c_int(n_steps)),
             byref(c_float(time_interval)),
             byref(c_int(wave_elevation_series_flag)),

@@ -31,6 +31,7 @@ MODULE SeaState_C_Binding
    implicit none
    save
 
+   PUBLIC :: SeaSt_C_PreInit
    PUBLIC :: SeaSt_C_Init
    PUBLIC :: SeaSt_C_CalcOutput
    PUBLIC :: SeaSt_C_End
@@ -47,7 +48,8 @@ MODULE SeaState_C_Binding
    !     2  - above + all position/orientation info
    !     3  - above + input files (if direct passed)
    !     4  - above + meshes
-   integer(IntKi)                         :: DebugLevel = 0
+   integer(IntKi)                         :: DebugLevel = 4
+   logical                                :: Initialized = .false.
 
    !------------------------------
    !  Primary derived types
@@ -65,17 +67,91 @@ MODULE SeaState_C_Binding
 contains
 
 
-subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, NSteps_C, TimeInterval_C, WaveElevSeriesFlag_C, WrWvKinMod_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
+!> Set environment variables
+subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLevel_In, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_PreInit')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
+#endif
+   real(c_float),              intent(in   ) :: Gravity_C
+   real(c_float),              intent(in   ) :: WtrDens_C
+   real(c_float),              intent(in   ) :: WtrDpth_C
+   real(c_float),              intent(in   ) :: MSL2SWL_C
+   integer(c_int),             intent(in   ) :: DebugLevel_In
+   integer(c_int),             intent(  out) :: ErrStat_C
+   character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+
+   integer                          :: ErrStat, ErrStat2
+   character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
+   integer                          :: i,j,k
+   character(*), parameter          :: RoutineName = 'SeaSt_C_PreInit'
+
+   ! Initialize error handling
+   ErrStat =  ErrID_None
+   ErrMsg  =  ""
+
+   call NWTC_Init( ProgNameIn=  SeaSt_ProgDesc%Name )
+   call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
+   call DispCompileRuntimeInfo( SeaSt_ProgDesc%Name )
+
+   ! interface debugging
+   DebugLevel = int(DebugLevel_in,IntKi)
+
+   ! check valid debug level, show passed data if >0
+   if (DebugLevel < 0_IntKi) then
+      ErrStat2 = ErrID_Fatal
+      ErrMsg2  = "Interface debug level must be 0 or greater"//NewLine// &
+      "  0  - none"//NewLine// &
+      "  1  - some summary info and variables passed through interface"//NewLine// &
+      "  2  - above + all position/orientation info"//NewLine// &
+      "  3  - above + input files (if direct passed)"//NewLine// &
+      "  4  - above + meshes"
+      call ShowPassedData()
+      if (Failed()) return;
+   elseif (DebugLevel > 0_IntKi) THEN
+      call WrScr("   Interface debugging level "//trim(Num2Lstr(DebugLevel))//" requested.")
+      call ShowPassedData()
+   endif
+
+   ! store environment values
+   InitInp%Gravity      = Gravity_C
+   InitInp%defWtrDens   = WtrDens_C
+   InitInp%defWtrDpth   = WtrDpth_C
+   InitInp%defMSL2SWL   = MSL2SWL_C
+
+   Initialized = .true.
+
+   call Cleanup()
+   return
+contains
+   logical function Failed()
+      call SetErrStat( ErrStat, ErrMsg, ErrStat, ErrMsg, RoutineName )
+      Failed = ErrStat >= AbortErrLev
+      if (Failed) call Cleanup()
+   end function Failed
+   subroutine Cleanup()    ! NOTE: we are ignoring any error reporting from here
+      call SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
+   end subroutine Cleanup
+   subroutine ShowPassedData()
+      ! character(1) :: TmpFlag
+      ! integer      :: i,j
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_PreInit")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   FIXME: THIS SECTION IS MISSING!!!!!!!")
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine SeaSt_C_PreInit
+
+
+!> Initialize the library (PreInit must be called first)
+subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, WaveElevSeriesFlag_C, WrWvKinMod_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 #endif
    type(c_ptr),                intent(in   ) :: InputFile_C
    type(c_ptr),                intent(in   ) :: OutRootName_C
-   real(c_float),              intent(in   ) :: Gravity_C
-   real(c_float),              intent(in   ) :: WtrDens_C
-   real(c_float),              intent(in   ) :: WtrDpth_C
-   real(c_float),              intent(in   ) :: MSL2SWL_C
    integer(c_int),             intent(in   ) :: NSteps_C
    real(c_float),              intent(in   ) :: TimeInterval_C
    integer(c_int),             intent(in   ) :: WaveElevSeriesFlag_C
@@ -89,13 +165,19 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    ! Local variables
    character(kind=C_CHAR, len=IntfStrLen), pointer :: InputFileString          !< Input file as a single string with NULL chracter separating lines
    character(kind=C_CHAR, len=IntfStrLen), pointer :: OutputFileString          !< Input file as a single string with NULL chracter separating lines
-   character(IntfStrLen)           :: InputFileName
-   character(IntfStrLen)           :: OutRootName
-   real(DbKi)                      :: Interval        !< DT for calling
+   character(IntfStrLen)            :: InputFileName
+   character(IntfStrLen)            :: OutRootName
+   real(DbKi)                       :: Interval        !< DT for calling
    integer                          :: ErrStat, ErrStat2
    character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
    integer                          :: i,j,k
    character(*), parameter          :: RoutineName = 'SeaSt_C_Init'  !< for error handling
+
+   if (.not. Initialized) then
+      ErrStat = ErrID_Fatal
+      ErrMSg  = "SeaSt_C_PreInit must be called before SeaSt_C_Init"
+      call Cleanup()
+   endif
 
    ! Initialize error handling
    ErrStat =  ErrID_None
@@ -105,8 +187,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    call DispCopyrightLicense(   SeaSt_ProgDesc%Name )
    call DispCompileRuntimeInfo( SeaSt_ProgDesc%Name )
 
-   ! interface debugging
-   ! DebugLevel = int(DebugLevel_in,IntKi)
+   if (DebugLevel > 0_IntKi) call ShowPassedData()
 
    ! Input files
    call C_F_POINTER(InputFile_C, InputFileString)  ! Get a pointer to the input file string
@@ -114,23 +195,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
 
    call C_F_POINTER(OutRootName_C, OutputFileString)  ! Get a pointer to the input file string
    OutRootName = FileNameFromCString(OutputFileString, IntfStrLen)  ! convert the input file name from c_char to fortran character
-
-   ! if non-zero, show all passed data here.  Then check valid values
-   if (DebugLevel > 0_IntKi) THEN
-      call WrScr("   Interface debugging level "//trim(Num2Lstr(DebugLevel))//" requested.")
-      call ShowPassedData()
-   endif
-   ! check valid debug level
-   if (DebugLevel < 0_IntKi) then
-      ErrStat2 = ErrID_Fatal
-      ErrMsg2  = "Interface debug level must be 0 or greater"//NewLine// &
-      "  0  - none"//NewLine// &
-      "  1  - some summary info and variables passed through interface"//NewLine// &
-      "  2  - above + all position/orientation info"//NewLine// &
-      "  3  - above + input files (if direct passed)"//NewLine// &
-      "  4  - above + meshes"
-      if (Failed()) return;
-   endif
 
    ! For debugging the interface:
    if (DebugLevel >= 4_IntKi) then
@@ -141,10 +205,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    InitInp%InputFile    = InputFileName
    InitInp%UseInputFile = .TRUE. 
    InitInp%OutRootName  = OutRootName
-   InitInp%Gravity      = Gravity_C
-   InitInp%defWtrDens   = WtrDens_C
-   InitInp%defWtrDpth   = WtrDpth_C
-   InitInp%defMSL2SWL   = MSL2SWL_C
    InitInp%TMax         = (NSteps_C - 1) * TimeInterval_C   ! Using this to match the SeaState driver; could otherwise get TMax directly
    InitInp%WaveFieldMod = WaveElevSeriesFlag_C
    ! REAL(ReKi)  :: PtfmLocationX = 0.0_ReKi      !< Supplied by Driver:  X coordinate of platform location in the wave field [m]
