@@ -28,8 +28,8 @@ MODULE SeaState_C_Binding
    USE NWTC_C_Binding, ONLY: ErrMsgLen_C, IntfStrLen, SetErrStat_F2C, FileNameFromCString
    USE VersionInfo
 
-   IMPLICIT NONE
-   SAVE
+   implicit none
+   save
 
    PUBLIC :: SeaSt_C_Init
    PUBLIC :: SeaSt_C_CalcOutput
@@ -128,7 +128,7 @@ SUBROUTINE SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    OutRootName = FileNameFromCString(OutputFileString, IntfStrLen)  ! convert the input file name from c_char to fortran character
 
    ! if non-zero, show all passed data here.  Then check valid values
-   IF (DebugLevel /= 0_IntKi) THEN
+   IF (DebugLevel > 0_IntKi) THEN
       CALL WrScr("   Interface debugging level "//trim(Num2Lstr(DebugLevel))//" requested.")
       CALL ShowPassedData()
    ENDIF
@@ -145,8 +145,8 @@ SUBROUTINE SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    ENDIF
 
    ! For debugging the interface:
-   IF (DebugLevel > 0) THEN
-      CALL ShowPassedData()
+   IF (DebugLevel >= 4_IntKi) THEN
+      !FIXME: add in some other stuff here on meshes one we have that.
    ENDIF
 
    ! Set other inputs for calling SeaSt_Init
@@ -204,12 +204,10 @@ CONTAINS
    SUBROUTINE ShowPassedData()
       ! CHARACTER(1) :: TmpFlag
       ! integer      :: i,j
-      CALL WrSCr("")
       CALL WrScr("-----------------------------------------------------------")
-      CALL WrScr("Interface debugging:  Variables passed in through interface")
-      CALL WrScr("   SeaSt_C_Init")
+      CALL WrScr("Interface debugging:  SeaSt_C_Init")
       CALL WrScr("   --------------------------------------------------------")
-      CALL WrScr("   FileInfo")
+      CALL WrScr("   FIXME: THIS SECTION IS MISSING!!!!!!!")
       CALL WrScr("-----------------------------------------------------------")
    END SUBROUTINE ShowPassedData
 END SUBROUTINE SeaSt_C_Init
@@ -220,53 +218,69 @@ SUBROUTINE SeaSt_C_CalcOutput(Time_C, OutputChannelValues_C, ErrStat_C, ErrMsg_C
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_CalcOutput
 #endif
 
-   REAL(C_DOUBLE),             INTENT(IN   ) :: Time_C
-   REAL(C_FLOAT),              INTENT(  OUT) :: OutputChannelValues_C(p%NumOuts)
-   INTEGER(C_INT),             INTENT(  OUT) :: ErrStat_C
-   CHARACTER(KIND=C_CHAR),     INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
+   real(c_double),             intent(in   ) :: Time_C
+   real(c_float),              intent(  out) :: OutputChannelValues_C(p%NumOuts)
+   integer(c_int),             intent(  out) :: ErrStat_C
+   character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
    ! Local variables
-   TYPE(SeaSt_InputType)           :: u           !< An initial guess for the input; input mesh must be defined
-   TYPE(SeaSt_ContinuousStateType) :: x           !< Initial continuous states
-   TYPE(SeaSt_DiscreteStateType)   :: xd          !< Initial discrete states
-   TYPE(SeaSt_ConstraintStateType) :: z           !< Initial guess of the constraint states
-   TYPE(SeaSt_OtherStateType)      :: OtherState  !< Initial other states            
+   type(SeaSt_InputType)           :: u           !< An initial guess for the input; input mesh must be defined
+   type(SeaSt_ContinuousStateType) :: x           !< Initial continuous states
+   type(SeaSt_DiscreteStateType)   :: xd          !< Initial discrete states
+   type(SeaSt_ConstraintStateType) :: z           !< Initial guess of the constraint states
+   type(SeaSt_OtherStateType)      :: OtherState  !< Initial other states            
 
-   REAL(DbKi)                 :: Time
-   INTEGER                    :: ErrStat_F                         !< aggregated error status
-   CHARACTER(ErrMsgLen)       :: ErrMsg_F                          !< aggregated error message
-   INTEGER                    :: ErrStat_F2                        !< temporary error status  from a call
-   CHARACTER(ErrMsgLen)       :: ErrMsg_F2                         !< temporary error message from a call
-   CHARACTER(*), PARAMETER    :: RoutineName = 'SeaSt_C_End'  !< for error handling
+   real(DbKi)                 :: Time
+   integer                    :: ErrStat_F                         !< aggregated error status
+   character(ErrMsgLen)       :: ErrMsg_F                          !< aggregated error message
+   integer                    :: ErrStat_F2                        !< temporary error status  from a call
+   character(ErrMsgLen)       :: ErrMsg_F2                         !< temporary error message from a call
+   character(*), parameter    :: RoutineName = 'SeaSt_C_End'  !< for error handling
 
    ! Initialize error handling
    ErrStat_F =  ErrID_None
    ErrMsg_F  =  ""
 
+   ! Debugging
+   if (DebugLevel > 0) call ShowPassedData()
+
    ! Convert the inputs from C to Fortran
    Time = REAL(Time_C,DbKi)
 
-   CALL SeaSt_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, ErrStat_F2, ErrMsg_F2 )
+   call SeaSt_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, ErrStat_F2, ErrMsg_F2 )
        IF (Failed()) RETURN
 
    ! Get the output channel info out of y
    OutputChannelValues_C = REAL(y%WriteOutput, C_FLOAT)
 
-   CALL Cleanup()
+   call Cleanup()
 
-CONTAINS
-   LOGICAL FUNCTION Failed()
-      CALL SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
+   ! Debugging
+   if (DebugLevel > 0) call ShowReturnData()
+
+contains
+   logical function Failed()
+      call SetErrStat( ErrStat_F2, ErrMsg_F2, ErrStat_F, ErrMsg_F, RoutineName )
       Failed = ErrStat_F >= AbortErrLev
-      IF (Failed) CALL Cleanup()
-   END FUNCTION Failed
-
-   SUBROUTINE Cleanup()    ! NOTE: we are ignoring any error reporting from here
+      if (Failed) call Cleanup()
+   end function Failed
+   subroutine Cleanup()    ! NOTE: we are ignoring any error reporting from here
       CALL SetErrStat_F2C(ErrStat_F,ErrMsg_F,ErrStat_C,ErrMsg_C)
    END SUBROUTINE Cleanup
-END SUBROUTINE
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_CalcOutput")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   Time_C                 -> "//trim(Num2LStr(Time_C)))
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   OutputChannelValues_C  <-")
+      call WrMatrix(OutputChannelValues_C,CU,'g15.6')
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowReturnData
+end subroutine
 
-SUBROUTINE SeaSt_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_End')
+subroutine SeaSt_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_End')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_End
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_End
@@ -279,15 +293,11 @@ SUBROUTINE SeaSt_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_End')
    integer                    :: ErrStat2                         !< temporary error status  from a call
    character(ErrMsgLen)       :: ErrMsg2                          !< temporary error message from a call
    character(*), parameter    :: RoutineName = 'SeaSt_C_End'  !< for error handling
-
-   ! Initialize error handling
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
    call SeaSt_End(u, p, x, xd, z, OtherState, y, m, ErrStat2, ErrMsg2)
-
    call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
-
 end subroutine
 
 
@@ -316,12 +326,10 @@ subroutine SeaSt_C_GetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
    return
 contains
    subroutine ShowPassedData()
-      call WrSCr("")
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  Variables passed in through interface")
-      call WrScr("   SeaSt_C_GetWaveFieldPointer")
+      call WrScr("Interface debugging:  SeaSt_C_GetWaveFieldPointer")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   WaveFieldPointer     "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("   WaveFieldPointer_C     -> "//trim(Num2LStr(loc(p%WaveField))))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine
@@ -355,15 +363,12 @@ subroutine SeaSt_C_SetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
    return
 contains
    subroutine ShowPassedData()
-      call WrSCr("")
       call WrScr("-----------------------------------------------------------")
-      call WrScr("Interface debugging:  Variables passed in through interface")
-      call WrScr("   SeaSt_C_SetWaveFieldPointer")
+      call WrScr("Interface debugging:  SeaSt_C_SetWaveFieldPointer")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   WaveFieldPointer     "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("   WaveFieldPointer_C     <- "//trim(Num2LStr(loc(p%WaveField))))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
-
 end subroutine
 
 
@@ -381,7 +386,6 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
    real(c_float),             intent(  out) :: Density_C
    integer(c_int),            intent(  out) :: ErrStat_C
    character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
-
    real(DbKi)                 :: Time
    real(ReKi)                 :: Pos(3)
    real(SiKi)                 :: Vel(3)
@@ -390,7 +394,6 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
 !FIXME:dev-tc uncomment next line
 !   logical                    :: fetchDynCurrent
    integer(IntKi)             :: nodeInWater
-
    integer                    :: ErrStat     !< aggregated error status
    character(ErrMsgLen)       :: ErrMsg      !< aggregated error message
    integer                    :: ErrStat2    !< temporary error status  from a call
@@ -400,6 +403,8 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
    ! Initialize error handling
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
+
+   if (DebugLevel > 0) call ShowPassedData()
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
@@ -428,7 +433,23 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
    endif
 
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
+   if (DebugLevel > 0) call ShowReturnData()
    return
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetFluidVelAccDens")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   Time_C                 -> "//trim(Num2LStr(Time_C)))
+      call WrScr("   Pos_C                  -> ("//trim(Num2LStr(Pos_C(1)))//","//trim(Num2LStr(Pos_C(2)))//","//trim(Num2LStr(Pos_C(3)))//")")
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   Vel_C                  <- ("//trim(Num2LStr(Vel_C(1)))//","//trim(Num2LStr(Vel_C(2)))//","//trim(Num2LStr(Vel_C(3)))//")")
+      call WrScr("   Acc_C                  <- ("//trim(Num2LStr(Acc_C(1)))//","//trim(Num2LStr(Acc_C(2)))//","//trim(Num2LStr(Acc_C(3)))//")")
+      call WrScr("   Density_C              <- "//trim(Num2LStr(Density_C)))
+      call WrScr("   NodeInWater_C          <- "//trim(Num2LStr(NodeInWater_C)))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowReturnData
 end subroutine SeaSt_C_GetFluidVelAccDens
 
 
@@ -456,8 +477,11 @@ subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
 
+   if (DebugLevel > 0) call ShowPassedData()
+
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
+   Pos = 0.0_ReKi
    Pos = real(Pos_C(1:2), ReKi)
 
    ! get wave elevation (total combined first and second order)
@@ -470,8 +494,20 @@ subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (
    Elev_C = real(Elev,c_float)
 
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
+   if (DebugLevel > 0) call ShowReturnData()
    return
-
+contains
+   subroutine ShowPassedData()
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  SeaSt_C_GetFluidVelAccDens")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   Time_C                 -> "//trim(Num2LStr(Time_C)))
+      call WrScr("   Pos_C                  -> ("//trim(Num2LStr(Pos_C(1)))//","//trim(Num2LStr(Pos_C(2)))//")   ignore z")
+   end subroutine ShowPassedData
+   subroutine ShowReturnData()
+      call WrScr("   Elev_C                 <- "//trim(Num2LStr(Elev_C)))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowReturnData
 end subroutine SeaSt_C_GetSurfElev
 
 
