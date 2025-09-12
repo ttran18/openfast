@@ -35,12 +35,9 @@ MODULE SeaState_C_Binding
    PUBLIC :: SeaSt_C_CalcOutput
    PUBLIC :: SeaSt_C_End
    PUBLIC :: SeaSt_C_GetWaveFieldPointer
+   PUBLIC :: SeaSt_C_SetWaveFieldPointer
    PUBLIC :: SeaSt_C_GetFluidVelAccDens
    PUBLIC :: SeaSt_C_GetSurfElev
-
-   !------------------------------------------------------------------------------------
-   !  Version info for display
-   TYPE(ProgDesc), PARAMETER              :: version   = SeaSt_ProgDesc
 
    !------------------------------------------------------------------------------------
    !  Debugging: DebugLevel -- passed at PreInit
@@ -49,18 +46,22 @@ MODULE SeaState_C_Binding
    !     2  - above + all position/orientation info
    !     3  - above + input files (if direct passed)
    !     4  - above + meshes
-   INTEGER(IntKi)                         :: DebugLevel = 0
+   integer(IntKi)                         :: DebugLevel = 0
 
    !------------------------------
    !  Primary derived types
-   TYPE(SeaSt_InputType)                    :: InputData         !< Inputs to SeaState
-   TYPE(SeaSt_InitInputType)                :: InitInp
-   TYPE(SeaSt_InitOutputType)               :: InitOutData       !< Initial output data -- Names, units, and version info.
-   TYPE(SeaSt_ParameterType)                :: p                 !< Parameters
-   TYPE(SeaSt_OutputType)                   :: y                 !< Initial output (outputs are not calculated; only the output mesh is initialized)
-   TYPE(SeaSt_MiscVarType)                  :: m                 !< Misc variables for optimization (not copied in glue code)
+   type(SeaSt_InputType)                  :: u           !< inputs to SS
+   type(SeaSt_InitInputType)              :: InitInp     !< initialization input
+   type(SeaSt_InitOutputType)             :: InitOutData !< Initial output data
+   type(SeaSt_ParameterType), target      :: p           !< Parameters
+   type(SeaSt_OutputType)                 :: y           !< Initial output (outputs are not calculated; only the output mesh is initialized)
+   type(SeaSt_MiscVarType)                :: m           !< Misc variables for optimization (not copied in glue code)
+   type(SeaSt_ContinuousStateType)        :: x           !< Initial continuous states
+   type(SeaSt_DiscreteStateType)          :: xd          !< Initial discrete states
+   type(SeaSt_ConstraintStateType)        :: z           !< Initial guess of the constraint states
+   type(SeaSt_OtherStateType)             :: OtherState  !< Initial other states            
 
-CONTAINS
+contains
 
 
 SUBROUTINE SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, NSteps_C, TimeInterval_C, WaveElevSeriesFlag_C, WrWvKinMod_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
@@ -112,9 +113,9 @@ SUBROUTINE SeaSt_C_Init(InputFile_C, OutRootName_C, Gravity_C, WtrDens_C, WtrDpt
    ErrStat_F =  ErrID_None
    ErrMsg_F  =  ""
 
-   CALL NWTC_Init( ProgNameIn=version%Name )
-   CALL DispCopyrightLicense( version%Name )
-   CALL DispCompileRuntimeInfo( version%Name )
+   CALL NWTC_Init( ProgNameIn=  SeaSt_ProgDesc%Name )
+   CALL DispCopyrightLicense(   SeaSt_ProgDesc%Name )
+   CALL DispCompileRuntimeInfo( SeaSt_ProgDesc%Name )
 
    ! interface debugging
    ! DebugLevel = int(DebugLevel_in,IntKi)
@@ -270,41 +271,100 @@ SUBROUTINE SeaSt_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_End')
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_End
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_End
 #endif
-   INTEGER(C_INT),             INTENT(  OUT) :: ErrStat_C
-   CHARACTER(KIND=C_CHAR),     INTENT(  OUT) :: ErrMsg_C(ErrMsgLen_C)
+   integer(C_INT),             intent(  out) :: ErrStat_C
+   character(kind=C_CHAR),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
-   ! Local variables
-   TYPE(SeaSt_InputType)           :: u           !< An initial guess for the input; input mesh must be defined
-   TYPE(SeaSt_ContinuousStateType) :: x           !< Initial continuous states
-   TYPE(SeaSt_DiscreteStateType)   :: xd          !< Initial discrete states
-   TYPE(SeaSt_ConstraintStateType) :: z           !< Initial guess of the constraint states
-   TYPE(SeaSt_OtherStateType)      :: OtherState  !< Initial other states            
-
-   INTEGER                    :: ErrStat                          !< aggregated error status
-   CHARACTER(ErrMsgLen)       :: ErrMsg                           !< aggregated error message
-   INTEGER                    :: ErrStat2                         !< temporary error status  from a call
-   CHARACTER(ErrMsgLen)       :: ErrMsg2                          !< temporary error message from a call
-   CHARACTER(*), PARAMETER    :: RoutineName = 'SeaSt_C_End'  !< for error handling
+   integer                    :: ErrStat                          !< aggregated error status
+   character(ErrMsgLen)       :: ErrMsg                           !< aggregated error message
+   integer                    :: ErrStat2                         !< temporary error status  from a call
+   character(ErrMsgLen)       :: ErrMsg2                          !< temporary error message from a call
+   character(*), parameter    :: RoutineName = 'SeaSt_C_End'  !< for error handling
 
    ! Initialize error handling
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
-   CALL SeaSt_End(u, p, x, xd, z, OtherState, y, m, ErrStat2, ErrMsg2)
+   call SeaSt_End(u, p, x, xd, z, OtherState, y, m, ErrStat2, ErrMsg2)
 
-   CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
-   CALL SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
 
-END SUBROUTINE
+end subroutine
 
-FUNCTION SeaSt_C_GetWaveFieldPointer() BIND (C, NAME='SeaSt_C_GetWaveFieldPointer')
+
+!> return the pointer to the WaveField data
+subroutine SeaSt_C_GetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetWaveFieldPointer')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetWaveFieldPointer
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetWaveFieldPointer
 #endif
-   TYPE(C_PTR) :: SeaSt_C_GetWaveFieldPointer
-   SeaSt_C_GetWaveFieldPointer = C_LOC(p%WaveField)
-   RETURN
-END FUNCTION
+   type(c_ptr),               intent(  out)  :: WaveFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'SeaSt_C_GetWaveFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   if (associated(p%WaveField)) then
+      WaveFieldPointer_C = C_LOC(p%WaveField)
+   else
+      WaveFieldPointer_C = C_NULL_PTR
+      call SetErrStat(ErrID_Fatal,"Pointer to WaveField data not valid: data not initialized",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 0) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrSCr("")
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  Variables passed in through interface")
+      call WrScr("   SeaSt_C_GetWaveFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   WaveFieldPointer     "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+end subroutine
+
+
+!> set the pointer to the WaveField data
+subroutine SeaSt_C_SetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_SetWaveFieldPointer')
+#ifndef IMPLICIT_DLLEXPORT
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_SetWaveFieldPointer
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_SetWaveFieldPointer
+#endif
+   type(c_ptr),               intent(in   )  :: WaveFieldPointer_C
+   integer(c_int),            intent(  out)  :: ErrStat_C
+   character(kind=c_char),    intent(  out)  :: ErrMsg_C(ErrMsgLen_C)
+   integer                                   :: ErrStat
+   character(ErrMsgLen)                      :: ErrMsg
+   character(*),              parameter      :: RoutineName = 'SeaSt_C_SetWaveFieldPointer'
+   ErrStat = ErrID_None
+   ErrMSg = ""
+   call C_F_POINTER(WaveFieldPointer_C, p%WaveField)
+   if (associated(p%WaveField)) then
+      ! basic sanity check
+      if (.not. allocated(p%WaveField%WaveTime)) then
+         call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or WaveField not initialized",ErrStat,ErrMsg,RoutineName)
+      endif
+   else
+      call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or WaveField not initialized",ErrStat,ErrMsg,RoutineName)
+   endif
+   call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
+   if (DebugLevel > 0) call ShowPassedData()
+   return
+contains
+   subroutine ShowPassedData()
+      call WrSCr("")
+      call WrScr("-----------------------------------------------------------")
+      call WrScr("Interface debugging:  Variables passed in through interface")
+      call WrScr("   SeaSt_C_SetWaveFieldPointer")
+      call WrScr("   --------------------------------------------------------")
+      call WrScr("   WaveFieldPointer     "//trim(Num2LStr(loc(p%WaveField))))
+      call WrScr("-----------------------------------------------------------")
+   end subroutine ShowPassedData
+
+end subroutine
 
 
 !> Get the fluid velocity, acceleration, node-in-water status, and density at time+position coordinate
