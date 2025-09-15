@@ -183,7 +183,7 @@ Mass and Inertia
 
 **HubIner**     - Hub inertia about rotor axis (2 or 3-blades) (kg m^2)
 
-**HubIner_Teeter**     - Hub inertia about teeter axis (2-blades) (Only used for 2-bladed turbines) (kg m^2)
+**HubIner_Teeter**     - Hub inertia about teeter axis (2-blades) (kg m^2)
 
 **GenIner**     - Generator inertia about HSS (kg m^2)
 
