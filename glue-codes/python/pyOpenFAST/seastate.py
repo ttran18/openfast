@@ -95,10 +95,10 @@ class SeaStateLib(OpenFASTInterfaceType):
         #--------------------------------------
         # VTK settings
         #--------------------------------------
-        self.vtk_write = 0         # Default -> no vtk output
+        self.vtk_write = 0         # Default -> no vtk output, 0 none, 1 init, 2 animation
         self.vtk_dt = 0.           # Default -> all
         self.vtk_dxy = 0.          # Default -> all
-        self.vtk_output_dir = ""             # Set to specify a directory relative to input files
+        self.vtk_output_dir = ""   # Set to specify a directory relative to input files
 
     def _initialize_routines(self):
         self.SeaSt_C_PreInit.argtypes = [
@@ -107,6 +107,10 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_float),       # intent(in   ) :: WtrDpth_c
             POINTER(c_float),       # intent(in   ) :: MSL2SWL_c
             POINTER(c_int),         # intent(in   ) :: debuglevel
+            POINTER(c_char),        # intent(in   ) :: vtk_output_dir_c
+            POINTER(c_int),         # intent(in   ) :: vtk_write
+            POINTER(c_double),      # intent(in   ) :: vtk_dt
+            POINTER(c_float),       # intent(in   ) :: vtk_dxy
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
@@ -245,10 +249,10 @@ class SeaStateLib(OpenFASTInterfaceType):
             byref(c_float(water_depth)),
             byref(c_float(msl2swl)),
             byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=all meshes)
-            #vtk_output_dir_c,                       # IN -> directory for vtk output files
-            #byref(c_int(self.write_vtk)),           # IN -> write VTK flag
-            #byref(c_double(self.vtk_dt)),           # IN -> VTK output time step
-            #byref(c_double(self.vtk_dxy)),          # IN -> VTK output dx and dy (0 reverts to default spacing)
+            vtk_output_dir_c,                       # IN -> directory for vtk output files
+            byref(c_int(self.vtk_write)),           # IN -> write VTK flag
+            byref(c_double(self.vtk_dt)),           # IN -> VTK output time step
+            byref(c_float(self.vtk_dxy)),           # IN -> VTK output dx and dy (0 reverts to default spacing)
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
@@ -274,7 +278,7 @@ class SeaStateLib(OpenFASTInterfaceType):
 
 
         self.SeaSt_C_Init(
-            c_char_p(primary_ss_file.encode('utf-8')),
+            c_char_p(primary_ss_file.encode('utf-8')),  #FIXME: this might overrun the buffer!!!!!
             c_char_p(outrootname.encode('utf-8')),
             byref(c_int(n_steps)),
             byref(c_float(time_interval)),

@@ -49,7 +49,14 @@ MODULE SeaState_C_Binding
    !     3  - above + input files (if direct passed)
    !     4  - above + meshes
    integer(IntKi)                         :: DebugLevel = 4
-   logical                                :: Initialized = .false.
+   logical                                :: PreInitDone = .false.
+
+   !------------------------------------------------------------------------------------
+   !  Visualization
+   character(1024)                        :: vtk_outdir
+   integer(IntKi)                         :: vtk_write
+   real(DbKi)                             :: vtk_dt
+   real(SiKi)                             :: vtk_dxy
 
    !------------------------------
    !  Primary derived types
@@ -68,7 +75,7 @@ contains
 
 
 !> Set environment variables
-subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLevel_In, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_PreInit')
+subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLevel_In, OutVTKDir_C, WrVTK_in, WrVTK_inDT, WrVTK_inDxy, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_PreInit')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
@@ -78,9 +85,14 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    real(c_float),              intent(in   ) :: WtrDpth_C
    real(c_float),              intent(in   ) :: MSL2SWL_C
    integer(c_int),             intent(in   ) :: DebugLevel_In
+   character(kind=c_char),     intent(in   ) :: OutVTKDir_C(IntfStrLen)                !< Directory to put all vtk output
+   integer(c_int),             intent(in   ) :: WrVTK_in                      !< Write VTK outputs [0: none, 1: init only, 2: animation]
+   real(c_double),             intent(in   ) :: WrVTK_inDT                    !< Timestep between VTK writes
+   real(c_float),              intent(in   ) :: WrVTK_inDxy                   !< Spacing in x and y dimensions for sea surface
    integer(c_int),             intent(  out) :: ErrStat_C
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
+   character(kind=C_CHAR, len=IntfStrLen), pointer :: InputString             !< Input string as a single string with NULL chracter separating lines
    integer                          :: ErrStat, ErrStat2
    character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
    integer                          :: i,j,k
@@ -119,7 +131,17 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    InitInp%defWtrDpth   = WtrDpth_C
    InitInp%defMSL2SWL   = MSL2SWL_C
 
-   Initialized = .true.
+   ! store VTK output info
+   vtk_outdir = TRANSFER( OutVTKDir_C, vtk_outdir )
+   i = INDEX(vtk_outdir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
+   if ( i > 0 ) vtk_outdir = vtk_outdir(1:I)            ! remove it
+
+   vtk_write  = int(WrVTK_in, IntKi)
+   vtk_dt     = real(WrVTK_inDT, DbKi)
+   vtk_dxy    = real(WrVTK_inDxy, SiKi)
+
+   ! If we got this far, we are initialized
+   PreInitDone = .true.
 
    call Cleanup()
    return
@@ -173,7 +195,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    integer                          :: i,j,k
    character(*), parameter          :: RoutineName = 'SeaSt_C_Init'  !< for error handling
 
-   if (.not. Initialized) then
+   if (.not. PreInitDone) then
       ErrStat = ErrID_Fatal
       ErrMSg  = "SeaSt_C_PreInit must be called before SeaSt_C_Init"
       call Cleanup()
