@@ -37,7 +37,7 @@ MODULE SeaState_C_Binding
    PUBLIC :: SeaSt_C_End
    PUBLIC :: SeaSt_C_GetWaveFieldPointer
    PUBLIC :: SeaSt_C_SetWaveFieldPointer
-   PUBLIC :: SeaSt_C_GetFluidVelAccDens
+   PUBLIC :: SeaSt_C_GetFluidVelAcc
    PUBLIC :: SeaSt_C_GetSurfElev
    PUBLIC :: SeaSt_C_GetSurfNorm
 
@@ -416,18 +416,17 @@ contains
 end subroutine
 
 
-!> Get the fluid velocity, acceleration, node-in-water status, and density at time+position coordinate
-subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Density_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetFluidVelAccDens')
+!> Get the fluid velocity, acceleration, and node-in-water status at time+position coordinate
+subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetFluidVelAcc')
 #ifndef IMPLICIT_DLLEXPORT
-!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAccDens
-!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAccDens
+!DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAcc
+!GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAcc
 #endif
    real(c_double),            intent(in   ) :: Time_C
    real(c_float),             intent(in   ) :: Pos_c(3)
    real(c_float),             intent(  out) :: Vel_c(3)
    real(c_float),             intent(  out) :: Acc_c(3)
    integer(c_int),            intent(  out) :: NodeInWater_C
-   real(c_float),             intent(  out) :: Density_C
    integer(c_int),            intent(  out) :: ErrStat_C
    character(kind=c_char),    intent(  out) :: ErrMsg_C(ErrMsgLen_C)
    real(DbKi)                 :: Time
@@ -440,11 +439,13 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
    integer(IntKi)             :: nodeInWater
    integer                    :: ErrStat, ErrStat2
    character(ErrMsgLen)       :: ErrMsg,  ErrMsg2
-   character(*), parameter    :: RoutineName = 'SeaSt_C_GetFluidVelAccDens'
+   character(*), parameter    :: RoutineName = 'SeaSt_C_GetFluidVelAcc'
 
    ! Initialize error handling
    ErrStat  =  ErrID_None
    ErrMsg   =  ""
+   
+   forceNodeInWater = .false.
 
    if (DebugLevel > 0) call ShowPassedData()
 
@@ -468,10 +469,8 @@ subroutine SeaSt_C_GetFluidVelAccDens(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C
    ! Density value and node status to return
    if (nodeInWater == 1_IntKi) then
       NodeInWater_C = 1_c_int
-      Density_C = real(p%WaveField%WtrDens, c_float)
    else
       NodeInWater_C = 0_c_int
-      Density_C = 0.0_c_float
    endif
 
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
@@ -488,11 +487,10 @@ contains
    subroutine ShowReturnData()
       call WrScr("   Vel_C                  <- ("//trim(Num2LStr(Vel_C(1)))//","//trim(Num2LStr(Vel_C(2)))//","//trim(Num2LStr(Vel_C(3)))//")")
       call WrScr("   Acc_C                  <- ("//trim(Num2LStr(Acc_C(1)))//","//trim(Num2LStr(Acc_C(2)))//","//trim(Num2LStr(Acc_C(3)))//")")
-      call WrScr("   Density_C              <- "//trim(Num2LStr(Density_C)))
       call WrScr("   NodeInWater_C          <- "//trim(Num2LStr(NodeInWater_C)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowReturnData
-end subroutine SeaSt_C_GetFluidVelAccDens
+end subroutine SeaSt_C_GetFluidVelAcc
 
 
 
