@@ -35,8 +35,22 @@ import numpy.typing as npt
 from pathlib import Path
 import datetime
 import os
+from dataclasses import dataclass
 
 from .interface_abc import OpenFASTInterfaceType
+
+@dataclass
+class MotionData:
+    """
+    POD-style container for motion-related data i.e. state of a node.  Only
+        position information for SeaState
+    """
+    position: npt.NDArray[np.float32]
+    #orientation: npt.NDArray[np.float64]
+    #velocity: npt.NDArray[np.float32]
+    #acceleration: npt.NDArray[np.float32]
+
+
 
 class SeaStateLib(OpenFASTInterfaceType):
     """
@@ -78,6 +92,13 @@ class SeaStateLib(OpenFASTInterfaceType):
         # flags
         self.debuglevel  = 0                # 0-4 levels
 
+        #--------------------------------------
+        # VTK settings
+        #--------------------------------------
+        self.vtk_write = 0         # Default -> no vtk output
+        self.vtk_dt = 0.           # Default -> all
+        self.vtk_dxy = 0.          # Default -> all
+        self.vtk_output_dir = ""             # Set to specify a directory relative to input files
 
     def _initialize_routines(self):
         self.SeaSt_C_PreInit.argtypes = [
@@ -125,25 +146,27 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
+        self.SeaSt_C_GetWaveFieldPointer.restype = c_int
 
         self.SeaSt_C_SetWaveFieldPointer.argtypes = [
             POINTER(c_void_p),      # intent(in   ) :: pointer to the WaveField data
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
+        self.SeaSt_C_SetWaveFieldPointer.restype = c_int
 
 
-        self.SeaSt_C_GetFluidVelAccDens.argtypes = [
+        self.SeaSt_C_GetFluidVelAcc.argtypes = [
             POINTER(c_double),      # intent(in   ) :: Time_C
             POINTER(c_float),       # intent(in   ) :: Pos_c(3)
             POINTER(c_float),       # intent(  out) :: Vel_c(3)
             POINTER(c_float),       # intent(  out) :: Acc_c(3)
             POINTER(c_int),         # intent(  out) :: NodeInWater_C
-            POINTER(c_float),       # intent(  out) :: Density_C
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
         ]
+        self.SeaSt_C_GetFluidVelAcc.restype = c_int
 
         self.SeaSt_C_GetSurfElev.argtypes = [
             POINTER(c_double),      # intent(in   ) :: Time_C
@@ -152,6 +175,16 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
+        self.SeaSt_C_GetSurfElev.restype = c_int
+
+        self.SeaSt_C_GetSurfNorm.argtypes = [
+            POINTER(c_double),      # intent(in   ) :: Time_C
+            POINTER(c_float),       # intent(in   ) :: Pos_c(3)
+            POINTER(c_float),       # intent(  out) :: norm(3)
+            POINTER(c_int),         # intent(  out) :: ErrStat_C
+            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
+        ]
+        self.SeaSt_C_GetSurfNorm.restype = c_int
 
     def check_error(self) -> None:
         """Checks for and handles any errors from the Fortran library.
@@ -203,12 +236,19 @@ class SeaStateLib(OpenFASTInterfaceType):
             ValueError: If values are outside reasonable bounds
             RuntimeError: If preinit fails 
         """
+        vtk_output_dir_c = create_string_buffer(
+            self.vtk_output_dir.ljust(self.default_str_c_len).encode('utf-8')
+        )
         self.SeaSt_C_PreInit(
             byref(c_float(gravity)),
             byref(c_float(water_density)),
             byref(c_float(water_depth)),
             byref(c_float(msl2swl)),
             byref(c_int(self.debug_level)),         # IN -> debug level (0=None to 4=all meshes)
+            #vtk_output_dir_c,                       # IN -> directory for vtk output files
+            #byref(c_int(self.write_vtk)),           # IN -> write VTK flag
+            #byref(c_double(self.vtk_dt)),           # IN -> VTK output time step
+            #byref(c_double(self.vtk_dxy)),          # IN -> VTK output dx and dy (0 reverts to default spacing)
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
@@ -266,6 +306,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         # Allocate the data for the outputs
         self.output_values = np.zeros( self._numChannels.value, dtype=c_float, order='C' )
 
+
     def seastate_calcOutput(self, time: float, output_channel_values: npt.NDArray[np.float32]) -> None:
         """Calculate output values at the given time.
 
@@ -296,6 +337,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         # Copy results back to numpy array
         output_channel_values[:] = np.reshape(self.output_values, (self.numChannels))
 
+
     def seastate_end(self):
         if not self.ended:
             self.ended = True
@@ -306,7 +348,6 @@ class SeaStateLib(OpenFASTInterfaceType):
             )
 
         self.check_error()
-
 
 
     def seastate_getWaveFieldPointer(self,ss_pointer: c_void_p) -> None:
@@ -326,27 +367,110 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.check_error()
 
 
-#    def get_fluidVelAccDens(self, pos, t):
-#
-#SeaSt_C_GetFluidVelAccDens.argtypes = [
-#            POINTER(c_double),      # intent(in   ) :: Time_C
-#            POINTER(c_float),       # intent(in   ) :: Pos_c(3)
-#            POINTER(c_float),       # intent(  out) :: Vel_c(3)
-#            POINTER(c_float),       # intent(  out) :: Acc_c(3)
-#            POINTER(c_int),         # intent(  out) :: NodeInWater_C
-#            POINTER(c_float),       # intent(  out) :: Density_C
-#            POINTER(c_int),         # intent(  out) :: ErrStat_C
-#            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
-#
-#        ]
-#
-#        self.SeaSt_C_GetSurfElev.argtypes = [
-#            POINTER(c_double),      # intent(in   ) :: Time_C
-#            POINTER(c_float),       # intent(in   ) :: Pos_c(3)
-#            POINTER(c_float),       # intent(  out) :: Elev_C
-#            POINTER(c_int),         # intent(  out) :: ErrStat_C
-#            POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
-#        ]
+    def get_fluidVelAcc(self,
+        time: float,
+        position: npt.NDArray[np.float32],
+        vel: npt.NDArray[np.float32],
+        acc: npt.NDArray[np.float32],
+        nodeInWater: int,
+    ) -> None:
+        """
+        Get fluid velocity, acceleration, and if node is in water  values at the given time.
+        Args:
+            time: Current simulation time
+            position: position in 3D to get info from
+            vel: velocity at position
+            acc: acceleration at position
+            nodeInWater: 1 if position is in the water, 0 if not.  Note that
+                this is relative to SWL unless stretching is used
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        # I don't know why I have to convert the position, but I get garbage
+        # across the inteface if I don't (IANAPP: I am not a python programmer)
+        pos = np.zeros( 3, dtype=c_float )
+        pos[0] = position[0]
+        pos[1] = position[1]
+        pos[2] = position[2]
+        vel = np.zeros( 3, dtype=c_float )
+        acc = np.zeros( 3, dtype=c_float )
+        self.SeaSt_C_GetFluidVelAcc(
+            byref(c_double(time)),                      # IN -> current simulation time
+            pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
+            vel.ctypes.data_as(POINTER(c_float)),       # OUT <- velocity (3 vector)
+            acc.ctypes.data_as(POINTER(c_float)),       # OUT <- acceleration (3 vector)
+            nodeInWater.ctypes.data_as(POINTER(c_int)), # OUT <- node is in water (0=false, 1=true)
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        return vel,acc,nodeInWater
+
+
+    def get_surfElev(self,
+        time: float,
+        position: npt.NDArray[np.float32],
+        elev: float,
+    ) -> None:
+        """
+        Get the surface elevation at an X,Y point.
+        Args:
+            time: Current simulation time
+            position: position in 2D to get info from (3D could be passed in)
+            elev: elevation in meters
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        # I don't know why I have to convert the position, but I get garbage
+        # across the inteface if I don't (IANAPP: I am not a python programmer)
+        pos = np.zeros( 2, dtype=c_float )
+        pos[0] = position[0]
+        pos[1] = position[1]
+        elev_c = (c_float)(0.0)
+        self.SeaSt_C_GetSurfElev(
+            byref(c_double(time)),                      # IN -> current simulation time
+            pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
+            elev_c,                                     # OUT <- total wave elevation
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        elev = elev_c.value
+        return elev
+
+
+    def get_surfNorm(self,
+        time: float,
+        position: npt.NDArray[np.float32],
+        norm: npt.NDArray[np.float32],
+    ) -> None:
+        """
+        Get the normal to the surface at an X,Y point.
+        Args:
+            time: Current simulation time
+            position: position in 2D to get info from (3D could be passed in)
+            norm: normal vector
+        Raises:
+            RuntimeError: If calculation fails
+        """
+        # I don't know why I have to convert the position, but I get garbage
+        # across the inteface if I don't (IANAPP: I am not a python programmer)
+        pos = np.zeros( 2, dtype=c_float )
+        pos[0] = position[0]
+        pos[1] = position[1]
+        norm = np.zeros( 3, dtype=c_float )
+        self.SeaSt_C_GetSurfNorm(
+            byref(c_double(time)),                      # IN -> current simulation time
+            pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)
+            norm.ctypes.data_as(POINTER(c_float)),      # OUT <- normal vector to surface
+            byref(self.error_status_c),                 # OUT <- error status
+            self.error_message_c                        # OUT <- error message
+        )
+        self.check_error()
+        return norm
+
+
+
 
 
     @property
@@ -380,14 +504,12 @@ class ResultsOut():
         self.results_file.write(f"# {os.linesep}")
         self.results_file.write(f"# {os.linesep}")
         self.results_file.write(f"# {os.linesep}")
-        self.results_file.write(f"          T                  X                  Y                  Z                  U                  V                  W{os.linesep}")
-        self.results_file.write(f"         (s)                (m)                (m)                (m)               (m/s)              (m/s)              (m/s){os.linesep}")
+        self.results_file.write(f"          T                  x                  y                  z                 V_x                V_y                V_z                A_x                A_Y                A_Z         nodeInWater              elev               norm_x             norm_y             norm_z{os.linesep}")
+        self.results_file.write(f"         (s)                (m)                (m)                (m)               (m/s)              (m/s)              (m/s)              (m/s)              (m/s)              (m/s)            (-)                   (m)               (m/s)              (m/s)              (m/s) {os.linesep}")
         self.opened = True
 
-    def write(self,t,positions,velocities):
-        for p, v in zip(positions,velocities):
-            # TODO: does \n work as expected on Windows?
-            self.results_file.write('  %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f\n' % (t,p[0],p[1],p[2],v[0],v[1],v[2]))
+    def write(self,t,p,v,a,nodeInWater,elev,n):
+        self.results_file.write('  %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16.8f   %16d   %16.8f   %16.8f   %16.8f   %16.8f\n' % (t,p[0],p[1],p[2],v[0],v[1],v[2],a[0],a[1],a[2],nodeInWater,elev,n[0],n[1],n[2]))
 
     def end(self):
         if self.opened:
