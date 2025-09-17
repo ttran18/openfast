@@ -72,7 +72,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         self.ended = False                  # For error handling at end
 
         # Create buffers for class data
-        self.abort_error_level = 4
+        #self.abort_error_level = 4
         self.error_status_c = c_int(0)
         self.error_message_c = create_string_buffer(self.ERROR_MSG_C_LEN)
 
@@ -204,7 +204,7 @@ class SeaStateLib(OpenFASTInterfaceType):
         error_msg = self.error_message_c.raw.decode('utf-8').strip()
         message = f"WaveTank library {error_level}: {error_msg}"
         # If the error level is fatal, call WaveTank_End() and raise an error
-        if self.error_status_c.value >= self.abort_error_level:
+        if self.error_status_c.value >= self.abort_error_level.value:
             try:
                 self.SeaSt_C_End(
                     byref(self.error_status_c),             # OUT <- error status code
@@ -418,10 +418,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         """
         # I don't know why I have to convert the position, but I get garbage
         # across the inteface if I don't (IANAPP: I am not a python programmer)
-        pos = np.zeros( 2, dtype=c_float )
-        pos[0] = position[0]
-        pos[1] = position[1]
-        elev_c = (c_float)(0.0)
+        pos = np.array(position).astype(c_float)[:3]
+        elev_c = c_float(0.0)
         self.SeaSt_C_GetSurfElev(
             byref(c_double(time)),                      # IN -> current simulation time
             pos.ctypes.data_as(POINTER(c_float)),       # IN -> position (3 vector)

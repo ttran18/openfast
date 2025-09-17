@@ -36,8 +36,7 @@ class OpenFASTInterfaceType(CDLL):
     #           Fortran code is 1025.
     default_str_c_len = 1025
 
-    #FIXME: the following does not work with the check_error routines in use
-    #abort_error_level = c_int(4)
+    abort_error_level = c_int(4)
 
     def __init__(self, library_path: str):
         super().__init__(library_path)
