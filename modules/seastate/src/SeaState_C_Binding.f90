@@ -131,6 +131,9 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
       call ShowPassedData()
    endif
 
+   ! clear memory of anything we allocate locally
+   call ClearMem()      ! ignoring any error handling from this
+
    ! store environment values
    InitInp%Gravity      = Gravity_C
    InitInp%defWtrDens   = WtrDens_C
@@ -421,6 +424,7 @@ subroutine SeaSt_C_End(ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_End')
    ErrMsg   =  ""
    call SeaSt_End(u, p, x, xd, z, OtherState, y, m, ErrStat2, ErrMsg2)
    call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
+   call ClearMem()      ! ignoring any error handling from this
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
 end subroutine
 
@@ -813,4 +817,15 @@ contains
       return
    end subroutine GetWaveElevIndx
 end subroutine WrVTK_WaveElevVisGrid
+
+!> clear any memory that the _End routine would not clear. Note we are ignoring any errors
+subroutine ClearMem()
+   integer(IntKi)       :: ErrStat2
+   character(ErrMsgLen) :: ErrMsg2
+   if (allocated(vtk%WaveElevVisX   )) deallocate(vtk%WaveElevVisX   )
+   if (allocated(vtk%WaveElevVisY   )) deallocate(vtk%WaveElevVisY   )
+   if (allocated(vtk%WaveElevVisGrid)) deallocate(vtk%WaveElevVisGrid)
+   call SeaSt_DestroyInitInput( InitInp,     ErrStat2, ErrMsg2)
+   call SeaSt_DestroyInitOutput(InitOutData, ErrStat2, ErrMsg2)
+end subroutine ClearMem
 end module SeaState_C_Binding
