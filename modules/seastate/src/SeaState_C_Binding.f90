@@ -501,6 +501,7 @@ end subroutine
 
 
 !> Get the fluid velocity, acceleration, and node-in-water status at time+position coordinate
+!! NOTE: if wave stretching is turned off, the SWL is used as the cutoff for the nodeInWater and for Vel / Acc values 
 subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, ErrStat_C,ErrMsg_C) BIND (C, NAME='SeaSt_C_GetFluidVelAcc')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_GetFluidVelAcc
@@ -691,6 +692,7 @@ end subroutine SeaSt_C_GetSurfNorm
 
 !FIXME: the following visualization writer should be merged into the library vtk.f90
 !        this is a modified duplicate of the routine from FAST_Subs by the same name.
+!FIXME: this routine currently only grabs the closest timestep and does not do any interpolation
 !----------------------------------------------------------------------------------------------------------------------------------
 !> This subroutine writes the wave elevation data for a given time step
 subroutine WrVTK_WaveElevVisGrid(t_global, vtk, ErrStat, ErrMsg)
