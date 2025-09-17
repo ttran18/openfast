@@ -198,7 +198,7 @@ end subroutine SeaSt_C_PreInit
 
 
 !> Initialize the library (PreInit must be called first)
-subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, WaveElevSeriesFlag_C, WrWvKinMod_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
+subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, NumChannels_C, OutputChannelNames_C, OutputChannelUnits_C, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_Init')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_Init
@@ -207,8 +207,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    type(c_ptr),                intent(in   ) :: OutRootName_C
    integer(c_int),             intent(in   ) :: NSteps_C
    real(c_float),              intent(in   ) :: TimeInterval_C
-   integer(c_int),             intent(in   ) :: WaveElevSeriesFlag_C
-   integer(c_int),             intent(in   ) :: WrWvKinMod_C
    integer(c_int),             intent(  out) :: NumChannels_C
    character(kind=c_char),     intent(  out) :: OutputChannelNames_C(ChanLen*MaxOutPts+1)
    character(kind=c_char),     intent(  out) :: OutputChannelUnits_C(ChanLen*MaxOutPts+1)
@@ -255,15 +253,13 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    InitInp%UseInputFile = .TRUE. 
    InitInp%OutRootName  = OutRootName
    InitInp%TMax         = (NSteps_C - 1) * TimeInterval_C   ! Using this to match the SeaState driver; could otherwise get TMax directly
-   InitInp%WaveFieldMod = WaveElevSeriesFlag_C
-   ! REAL(ReKi)  :: PtfmLocationX = 0.0_ReKi      !< Supplied by Driver:  X coordinate of platform location in the wave field [m]
-   ! REAL(ReKi)  :: PtfmLocationY = 0.0_ReKi      !< Supplied by Driver:  Y coordinate of platform location in the wave field [m]
-   InitInp%WrWvKinMod = WrWvKinMod_C
-   ! LOGICAL  :: HasIce = .false.      !< Supplied by Driver:  Whether this simulation has ice loading (flag) [-]
-   ! LOGICAL  :: Linearize = .FALSE.      !< Flag that tells this module if the glue code wants to linearize. [-]
-   ! LOGICAL  :: SurfaceVis = .FALSE.      !< Turn on grid surface visualization outputs [-]
-   ! INTEGER(IntKi)  :: SurfaceVisNx = 0      !< Number of points in X direction to output for visualization grid.  Use 0 or negative to set to SeaState resolution. [-]
-   ! INTEGER(IntKi)  :: SurfaceVisNy = 0      !< Number of points in Y direction to output for visualization grid.  Use 0 or negative to set to SeaState resolution. [-]
+   InitInp%WaveFieldMod = 0_IntKi 
+   InitInp%WrWvKinMod   = 0_IntKi 
+   InitInp%Linearize    = .false.
+   InitInp%hasIce        = .false.
+   InitInp%WaveFieldMod  = 0        ! does not currently support moving platform.  Not really necessary though since can directly get data in absolute coords
+   InitInp%PtfmLocationX = 0.0_ReKi
+   InitInp%PtfmLocationY = 0.0_ReKi
 
    call SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOutData, ErrStat2, ErrMsg2 )
       if (Failed()) return
@@ -326,12 +322,15 @@ contains
       call SetErrStat_F2C(ErrStat,ErrMsg,ErrStat_C,ErrMsg_C)
    end subroutine Cleanup
    subroutine ShowPassedData()
-      ! character(1) :: TmpFlag
+      character(1) :: TmpFlag
       ! integer      :: i,j
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  SeaSt_C_Init")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   FIXME: THIS SECTION IS MISSING!!!!!!!")
+      call WrScr("   InputFile_C   (ptr addr) -> "//trim(Num2LStr(LOC(InputFile_C))))
+      call WrScr("   OutRootName_C (ptr addr) -> "//trim(Num2LStr(LOC(OutRootName_C))))
+      call WrScr("   NSteps_C               - > "//trim(Num2LStr(NSteps_C)))
+      call WrScr("   TimeInterval_C          -> "//trim(Num2LStr(TimeInterval_C)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine SeaSt_C_Init
