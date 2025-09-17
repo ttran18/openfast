@@ -112,22 +112,20 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_PreInit.restype = c_int
+        self.SeaSt_C_PreInit.restype = None
 
         self.SeaSt_C_Init.argtypes = [
             POINTER(c_char_p),      # intent(in   ) :: InputFile_c(IntfStrLen)
             POINTER(c_char_p),      # intent(in   ) :: OutRootName_c(IntfStrLen)
             POINTER(c_int),         # intent(in   ) :: NSteps_c
             POINTER(c_float),       # intent(in   ) :: TimeInterval_c
-            POINTER(c_int),         # intent(in   ) :: WaveElevSeriesFlag_c
-            POINTER(c_int),         # intent(in   ) :: WrWvKinMod_c
             POINTER(c_int),         # intent(  out) :: NumChannels_c
             POINTER(c_char),        # intent(  out) :: OutputChannelNames_C
             POINTER(c_char),        # intent(  out) :: OutputChannelUnits_C
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_Init.restype = c_int
+        self.SeaSt_C_Init.restype = None
 
         self.SeaSt_C_CalcOutput.argtypes = [
             POINTER(c_double),      # intent(in   ) :: Time_C
@@ -135,27 +133,27 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_CalcOutput.restype = c_int
+        self.SeaSt_C_CalcOutput.restype = None
 
         self.SeaSt_C_End.argtypes = [
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_End.restype = c_int
+        self.SeaSt_C_End.restype = None
 
         self.SeaSt_C_GetWaveFieldPointer.argtypes = [
             POINTER(c_void_p),      # intent(  out) :: pointer to the WaveField data
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_GetWaveFieldPointer.restype = c_int
+        self.SeaSt_C_GetWaveFieldPointer.restype = None
 
         self.SeaSt_C_SetWaveFieldPointer.argtypes = [
             POINTER(c_void_p),      # intent(in   ) :: pointer to the WaveField data
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_SetWaveFieldPointer.restype = c_int
+        self.SeaSt_C_SetWaveFieldPointer.restype = None
 
 
         self.SeaSt_C_GetFluidVelAcc.argtypes = [
@@ -168,7 +166,7 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
         ]
-        self.SeaSt_C_GetFluidVelAcc.restype = c_int
+        self.SeaSt_C_GetFluidVelAcc.restype = None
 
         self.SeaSt_C_GetSurfElev.argtypes = [
             POINTER(c_double),      # intent(in   ) :: Time_C
@@ -177,7 +175,7 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_GetSurfElev.restype = c_int
+        self.SeaSt_C_GetSurfElev.restype = None
 
         self.SeaSt_C_GetSurfNorm.argtypes = [
             POINTER(c_double),      # intent(in   ) :: Time_C
@@ -186,7 +184,7 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char)         # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
-        self.SeaSt_C_GetSurfNorm.restype = c_int
+        self.SeaSt_C_GetSurfNorm.restype = None
 
     def check_error(self) -> None:
         """Checks for and handles any errors from the Fortran library.
@@ -260,10 +258,8 @@ class SeaStateLib(OpenFASTInterfaceType):
         self,
         primary_ss_file,
         outrootname: str = "./seastate.SeaSt",
-        wave_kinematics_mode: int = 0,
         n_steps: int = 801,
         time_interval: float = 0.125,
-        wave_elevation_series_flag: int = 0,
     ):
 
         # This buffer for the channel names and units is set arbitrarily large
@@ -279,8 +275,6 @@ class SeaStateLib(OpenFASTInterfaceType):
             c_char_p(outrootname.encode('utf-8')),
             byref(c_int(n_steps)),
             byref(c_float(time_interval)),
-            byref(c_int(wave_elevation_series_flag)),
-            byref(c_int(wave_kinematics_mode)),
             byref(self._numChannels),
             _channel_names,
             _channel_units,
