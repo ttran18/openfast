@@ -53,10 +53,19 @@ MODULE SeaState_C_Binding
 
    !------------------------------------------------------------------------------------
    !  Visualization
-   character(1024)                        :: vtk_outdir
-   integer(IntKi)                         :: vtk_write
-   real(DbKi)                             :: vtk_dt
-   real(SiKi)                             :: vtk_dxy
+   type VTKvis
+      character(1024)                     :: outdir
+      character(1024)                     :: OutRootName       ! includes directory
+      integer(IntKi)                      :: write             ! 0 off, 1 init, 2 animate
+      real(DbKi)                          :: dt
+      integer(IntKi)                      :: NWaveElevPts(2)   ! number of points in x/y directions
+      real(SiKi), allocatable             :: WaveElevVisX(:),WaveElevVisY(:)    ! x, y locations of points
+      real(SiKi), allocatable             :: WaveElevVisGrid(:,:,:)             ! the actual surface data for full time series
+      integer(IntKi)                      :: tWidth = 5        ! Should calculate this, but not going to
+      integer(IntKi)                      :: LastWaveIndx
+      integer(IntKi)                      :: lastCount = -1
+   end type VTKvis
+   type(VTKvis)                           :: vtk
 
    !------------------------------
    !  Primary derived types
@@ -75,7 +84,7 @@ contains
 
 
 !> Set environment variables
-subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLevel_In, OutVTKDir_C, WrVTK_in, WrVTK_inDT, WrVTK_inDxy, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_PreInit')
+subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLevel_In, OutVTKDir_C, WrVTK_in, WrVTK_inDT, ErrStat_C, ErrMsg_C) BIND (C, NAME='SeaSt_C_PreInit')
 #ifndef IMPLICIT_DLLEXPORT
 !DEC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
 !GCC$ ATTRIBUTES DLLEXPORT :: SeaSt_C_PreInit
@@ -85,10 +94,9 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    real(c_float),              intent(in   ) :: WtrDpth_C
    real(c_float),              intent(in   ) :: MSL2SWL_C
    integer(c_int),             intent(in   ) :: DebugLevel_In
-   character(kind=c_char),     intent(in   ) :: OutVTKDir_C(IntfStrLen)                !< Directory to put all vtk output
+   character(kind=c_char),     intent(in   ) :: OutVTKDir_C(IntfStrLen)       !< Directory to put all vtk output
    integer(c_int),             intent(in   ) :: WrVTK_in                      !< Write VTK outputs [0: none, 1: init only, 2: animation]
    real(c_double),             intent(in   ) :: WrVTK_inDT                    !< Timestep between VTK writes
-   real(c_float),              intent(in   ) :: WrVTK_inDxy                   !< Spacing in x and y dimensions for sea surface
    integer(c_int),             intent(  out) :: ErrStat_C
    character(kind=c_char),     intent(  out) :: ErrMsg_C(ErrMsgLen_C)
 
@@ -114,10 +122,8 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
       ErrStat2 = ErrID_Fatal
       ErrMsg2  = "Interface debug level must be 0 or greater"//NewLine// &
       "  0  - none"//NewLine// &
-      "  1  - some summary info and variables passed through interface"//NewLine// &
-      "  2  - above + all position/orientation info"//NewLine// &
-      "  3  - above + input files (if direct passed)"//NewLine// &
-      "  4  - above + meshes"
+      "  1  - some summary info and variables passed through interface (init only)"//NewLine// &
+      "  2  - above + all position info on all calls"
       call ShowPassedData()
       if (Failed()) return;
    elseif (DebugLevel > 0_IntKi) THEN
@@ -131,14 +137,29 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    InitInp%defWtrDpth   = WtrDpth_C
    InitInp%defMSL2SWL   = MSL2SWL_C
 
+   !----------------------
    ! store VTK output info
-   vtk_outdir = TRANSFER( OutVTKDir_C, vtk_outdir )
-   i = INDEX(vtk_outdir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
-   if ( i > 0 ) vtk_outdir = vtk_outdir(1:I)            ! remove it
+   vtk%write  = int(WrVTK_in, IntKi)
+   vtk%dt     = real(WrVTK_inDT, DbKi)
 
-   vtk_write  = int(WrVTK_in, IntKi)
-   vtk_dt     = real(WrVTK_inDT, DbKi)
-   vtk_dxy    = real(WrVTK_inDxy, SiKi)
+   if (vtk%write < 0_IntKi .or. vtk%write > 2_IntKi) then
+      ErrStat2 = ErrID_Warn
+      ErrMSg2  = "WrVTK_in must be 0 (off), 1 (init), 2 (animation), but "//trim(Num2LStr(vtk%write))//" was passed.  Turning off VTK surface export."
+      vtk%write = 0_IntKi
+      if (Failed()) return
+   endif
+
+   if (vtk%write > 0_IntKi) then
+      ! Store the out root dir
+      vtk%outdir = TRANSFER( OutVTKDir_C, vtk%outdir )
+      i = INDEX(vtk%outdir,C_NULL_CHAR) - 1               ! if this has a c null character at the end...
+      if ( i > 0 ) vtk%outdir = vtk%outdir(1:I)            ! remove it
+      ! Tell SeaState to generate the visualization using default grid
+      InitInp%SurfaceVis     = .true.
+      InitInp%SurfaceVisNx   = 0    ! use the WaveField grid resolution
+      InitInp%SurfaceVisNy   = 0    ! use the WaveField grid resolution
+   endif
+
 
    ! If we got this far, we are initialized
    PreInitDone = .true.
@@ -147,7 +168,7 @@ subroutine SeaSt_C_PreInit(Gravity_C, WtrDens_C, WtrDpth_C, MSL2SWL_C, DebugLeve
    return
 contains
    logical function Failed()
-      call SetErrStat( ErrStat, ErrMsg, ErrStat, ErrMsg, RoutineName )
+      call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       Failed = ErrStat >= AbortErrLev
       if (Failed) call Cleanup()
    end function Failed
@@ -160,7 +181,14 @@ contains
       call WrScr("-----------------------------------------------------------")
       call WrScr("Interface debugging:  SeaSt_C_PreInit")
       call WrScr("   --------------------------------------------------------")
-      call WrScr("   FIXME: THIS SECTION IS MISSING!!!!!!!")
+      call WrScr("   Gravity_C              -> "//trim(Num2LStr(Gravity_C)))
+      call WrScr("   WtrDens_C              -> "//trim(Num2LStr(WtrDens_C)))
+      call WrScr("   WtrDpth_C              -> "//trim(Num2LStr(WtrDpth_C)))
+      call WrScr("   MSL2SWL_C              -> "//trim(Num2LStr(MSL2SWL_C)))
+      call WrScr("   DebugLevel_In          -> "//trim(Num2LStr(DebugLevel_In)))
+      call WrScr("   OutVTKDir_C (ptr addr) -> "//trim(Num2LStr(LOC(OutVTKDir_C))))
+      call WrScr("   WrVTK_in               -> "//trim(Num2LStr(WrVTK_in)))
+      call WrScr("   WrVTK_inDT             -> "//trim(Num2LStr(WrVTK_inDT)))
       call WrScr("-----------------------------------------------------------")
    end subroutine ShowPassedData
 end subroutine SeaSt_C_PreInit
@@ -189,6 +217,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    character(kind=C_CHAR, len=IntfStrLen), pointer :: OutputFileString          !< Input file as a single string with NULL chracter separating lines
    character(IntfStrLen)            :: InputFileName
    character(IntfStrLen)            :: OutRootName
+   character(1024)                  :: vtkroot
    real(DbKi)                       :: Interval        !< DT for calling
    integer                          :: ErrStat, ErrStat2
    character(ErrMsgLen)             :: ErrMsg,  ErrMsg2
@@ -218,11 +247,6 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    call C_F_POINTER(OutRootName_C, OutputFileString)  ! Get a pointer to the input file string
    OutRootName = FileNameFromCString(OutputFileString, IntfStrLen)  ! convert the input file name from c_char to fortran character
 
-   ! For debugging the interface:
-   if (DebugLevel >= 4_IntKi) then
-      !FIXME: add in some other stuff here on meshes one we have that.
-   endif
-
    ! Set other inputs for calling SeaSt_Init
    InitInp%InputFile    = InputFileName
    InitInp%UseInputFile = .TRUE. 
@@ -238,7 +262,7 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    ! INTEGER(IntKi)  :: SurfaceVisNx = 0      !< Number of points in X direction to output for visualization grid.  Use 0 or negative to set to SeaState resolution. [-]
    ! INTEGER(IntKi)  :: SurfaceVisNy = 0      !< Number of points in Y direction to output for visualization grid.  Use 0 or negative to set to SeaState resolution. [-]
 
-   call SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOutData, ErrStat, ErrMsg )
+   call SeaSt_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOutData, ErrStat2, ErrMsg2 )
       if (Failed()) return
 
    ! Number of channels
@@ -258,11 +282,40 @@ subroutine SeaSt_C_Init(InputFile_C, OutRootName_C, NSteps_C, TimeInterval_C, Wa
    OutputChannelNames_C(k) = C_NULL_CHAR
    OutputChannelUnits_C(k) = C_NULL_CHAR
 
+   if (vtk%write > 0_IntKi) then
+      ! check dt (can't check against Interval since that is never set, so just make sure it is positive)
+      if (vtk%dt <= 0.0) vtk%dt = 0.25
+      if (allocated(InitOutData%WaveElevVisGrid)) then
+         vtk%NWaveElevPts(1) = size(InitOutData%WaveElevVisX)
+         vtk%NWaveElevPts(2) = size(InitOutData%WaveElevVisY)
+         call move_alloc(InitOutData%WaveElevVisX, vtk%WaveElevVisX)
+         call move_alloc(InitOutData%WaveElevVisY, vtk%WaveElevVisY)
+         call move_alloc(InitOutData%WaveElevVisGrid,vtk%WaveElevVisGrid )
+      else
+         vtk%NWaveElevPts = 0
+         vtk%write = 0     ! FIXME throw warning if we do this
+      endif
+      ! get the name of the output directory for vtk files (in a subdirectory called "vtk" of the output directory), and
+      ! create the VTK directory if it does not exist
+      call GetPath ( OutRootName, vtk%OutRootName, vtkroot ) ! the returned vtk%OutRootName includes a file separator character at the end
+      if (PathIsRelative(trim(vtk%OutRootName))) then
+         vtk%OutRootName = trim(vtk%OutRootName) // trim(vtk%outdir)
+      else
+         vtk%OutRootName = trim(vtk%outdir)
+      endif
+      call MKDIR( trim(vtk%OutRootName) )
+      vtk%OutRootName = trim( vtk%OutRootName ) // PathSep // trim(vtkroot)
+      call WrVTK_WaveElevVisGrid  (0.0_DbKi, vtk, ErrStat2, ErrMsg2)
+      if (Failed()) return
+   endif
+
+
+
    call Cleanup()
 
 contains
    logical function Failed()
-      call SetErrStat( ErrStat, ErrMsg, ErrStat, ErrMsg, RoutineName )
+      call SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName )
       Failed = ErrStat >= AbortErrLev
       if (Failed) call Cleanup()
    end function Failed
@@ -301,28 +354,33 @@ subroutine SeaSt_C_CalcOutput(Time_C, OutputChannelValues_C, ErrStat_C, ErrMsg_C
    real(DbKi)                 :: Time
    integer                    :: ErrStat, ErrStat2
    character(ErrMsgLen)       :: ErrMsg,  ErrMsg2
-   character(*), parameter    :: RoutineName = 'SeaSt_C_End'  !< for error handling
+   character(*), parameter    :: RoutineName = 'SeaSt_C_CalcOutput'  !< for error handling
 
    ! Initialize error handling
    ErrStat =  ErrID_None
    ErrMsg  =  ""
 
    ! Debugging
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
 
    ! Convert the inputs from C to Fortran
    Time = REAL(Time_C,DbKi)
 
    call SeaSt_CalcOutput( Time, u, p, x, xd, z, OtherState, y, m, ErrStat2, ErrMsg2 )
-       IF (Failed()) RETURN
+   if (Failed()) return
 
    ! Get the output channel info out of y
    OutputChannelValues_C = REAL(y%WriteOutput, C_FLOAT)
 
+   if (vtk%write > 1_IntKi) then
+      call WrVTK_WaveElevVisGrid  (Time, vtk, ErrStat2, ErrMsg2)
+      if (Failed()) return
+   endif
+
    call Cleanup()
 
    ! Debugging
-   if (DebugLevel > 0) call ShowReturnData()
+   if (DebugLevel > 1) call ShowReturnData()
 
 contains
    logical function Failed()
@@ -388,7 +446,7 @@ subroutine SeaSt_C_GetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
       call SetErrStat(ErrID_Fatal,"Pointer to WaveField data not valid: data not initialized",ErrStat,ErrMsg,RoutineName)
    endif
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
    return
 contains
    subroutine ShowPassedData()
@@ -425,7 +483,7 @@ subroutine SeaSt_C_SetWaveFieldPointer(WaveFieldPointer_C,ErrStat_C,ErrMsg_C) BI
       call SetErrStat(ErrID_Fatal,"Invalid pointer passed in, or WaveField not initialized",ErrStat,ErrMsg,RoutineName)
    endif
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
    return
 contains
    subroutine ShowPassedData()
@@ -469,7 +527,7 @@ subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Er
    
    forceNodeInWater = .false.
 
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
@@ -496,7 +554,7 @@ subroutine SeaSt_C_GetFluidVelAcc(Time_C, Pos_C, Vel_C, Acc_C, NodeInWater_C, Er
    endif
 
    call SetErrStat_F2C( ErrStat, ErrMsg, ErrStat_C, ErrMsg_C )    ! convert error from fortran to C for return
-   if (DebugLevel > 0) call ShowReturnData()
+   if (DebugLevel > 1) call ShowReturnData()
    return
 contains
    subroutine ShowPassedData()
@@ -535,7 +593,7 @@ subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (
    character(ErrMsgLen)       :: ErrMsg
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfElev'
 
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
@@ -550,7 +608,7 @@ subroutine SeaSt_C_GetSurfElev(Time_C, Pos_C, Elev_C, ErrStat_C,ErrMsg_C) BIND (
    ! Store resulting elevation as C type
    Elev_C = real(Elev,c_float)
 
-   if (DebugLevel > 0) call ShowReturnData()
+   if (DebugLevel > 1) call ShowReturnData()
    call Cleanup()
    return
 contains
@@ -591,7 +649,7 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    character(ErrMsgLen)       :: ErrMsg
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfNorm'
 
-   if (DebugLevel > 0) call ShowPassedData()
+   if (DebugLevel > 1) call ShowPassedData()
 
    ! convert position and time to fortran types
    Time = real(Time_C, DbKi)
@@ -604,7 +662,7 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
    ! Store resulting normal vector as C type
    NormVec_C = real(NormVec,c_float)
 
-   if (DebugLevel > 0) call ShowReturnData()
+   if (DebugLevel > 1) call ShowReturnData()
    call Cleanup()
    return
 contains
@@ -625,4 +683,134 @@ contains
 end subroutine SeaSt_C_GetSurfNorm
 
 
+
+
+!FIXME: the following visualization writer should be merged into the library vtk.f90
+!        this is a modified duplicate of the routine from FAST_Subs by the same name.
+!----------------------------------------------------------------------------------------------------------------------------------
+!> This subroutine writes the wave elevation data for a given time step
+subroutine WrVTK_WaveElevVisGrid(t_global, vtk, ErrStat, ErrMsg)
+   real(DbKi),                intent(in   )  :: t_global       !< Current global time
+   type(VTKvis),              intent(inout)  :: vtk
+   integer(IntKi),            intent(  out)  :: ErrStat
+   character(ErrMsgLen),      intent(  out)  :: ErrMsg
+   integer(IntKi)                            :: Un             ! fortran unit number
+   integer(IntKi)                            :: n, iy, ix      ! loop counters
+   real(SiKi)                                :: t
+   integer(IntKi)                            :: count          ! which file is this?
+   character(1024)                           :: FileName
+   integer(IntKi)                            :: NumberOfPoints
+   integer(IntKi), parameter                 :: NumberOfLines = 0
+   integer(IntKi)                            :: NumberOfPolys
+   character(1024)                           :: Tstr
+   integer(IntKi)                            :: ErrStat2
+   character(ErrMsgLen)                      :: ErrMsg2
+   character(*),parameter                    :: RoutineName = 'WrVTK_WaveElevVisGrid'
+
+   ! Initialize error handling
+   ErrStat = ErrID_None
+   ErrMsg  = ""
+
+   NumberOfPoints = vtk%NWaveElevPts(1) * vtk%NWaveElevPts(2)
+   ! I'm going to make triangles for now. we should probably just make this a structured file at some point
+   NumberOfPolys  = ( vtk%NWaveElevPts(1) - 1 ) * &
+                    ( vtk%NWaveElevPts(2) - 1 ) * 2
+
+   count = nint(t_global / vtk%dt)
+   if (count == vtk%lastCount) return     ! already wrote this one
+   vtk%lastCount = count                  ! store the current number to make sure we don't write it twice
+
+   !.................................................................
+   ! write the data that potentially changes each time step:
+   !.................................................................
+   ! construct the string for the zero-padded VTK write-out step
+   write(Tstr, '(i' // trim(Num2LStr(vtk%tWidth)) //'.'// trim(Num2LStr(vtk%tWidth)) // ')') count
+
+   ! PolyData (.vtp) - Serial vtkPolyData (unstructured) file
+   FileName = TRIM(vtk%OutRootName)//'.WaveSurface.'//TRIM(Tstr)//'.vtp'
+
+   call WrVTK_header( FileName, NumberOfPoints, NumberOfLines, NumberOfPolys, Un, ErrStat, ErrMsg )
+      if (ErrStat >= AbortErrLev) return
+
+! points (nodes, augmented with NumSegments):
+   write(Un,'(A)')         '      <Points>'
+   write(Un,'(A)')         '        <DataArray type="Float32" NumberOfComponents="3" format="ascii">'
+
+   ! I'm not going to interpolate in time; I'm just going to get the index of the closest wave time value
+   t = REAL(t_global,SiKi)
+   call GetWaveElevIndx( t, p%WaveField%WaveTime, vtk%LastWaveIndx )
+
+   do ix=1,vtk%NWaveElevPts(1)
+      do iy=1,vtk%NWaveElevPts(2)
+         write(Un,VTK_AryFmt) vtk%WaveElevVisX(ix), vtk%WaveElevVisY(iy), vtk%WaveElevVisGrid(vtk%LastWaveIndx,ix,iy)
+      end do
+   end do
+
+   write(Un,'(A)')         '        </DataArray>'
+   write(Un,'(A)')         '      </Points>'
+   write(Un,'(A)')         '      <Polys>'
+   write(Un,'(A)')         '        <DataArray type="Int32" Name="connectivity" format="ascii">'
+
+   do ix=1,vtk%NWaveElevPts(1)-1
+      do iy=1,vtk%NWaveElevPts(2)-1
+         n = vtk%NWaveElevPts(2)*(ix-1)+iy - 1 ! points start at 0
+         write(Un,'(3(i7))') n,   n+1,                                    n+vtk%NWaveElevPts(2)
+         write(Un,'(3(i7))') n+1, n+1+vtk%NWaveElevPts(2), n+vtk%NWaveElevPts(2)
+      end do
+   end do
+   write(Un,'(A)')         '        </DataArray>'
+   write(Un,'(A)')         '        <DataArray type="Int32" Name="offsets" format="ascii">'
+   do n=1,NumberOfPolys
+      WRITE(Un,'(i7)') 3*n
+   end do
+   write(Un,'(A)')         '        </DataArray>'
+   write(Un,'(A)')         '      </Polys>'
+   call WrVTK_footer( Un )
+contains
+   !----------------------------------------------------------------------------------------------------------------------------------
+   !> This function returns the index, Ind, of the XAry closest to XValIn, where XAry is assumed to be periodic. It starts
+   !! searching at the value of Ind from a previous step.
+   subroutine GetWaveElevIndx( XValIn, XAry, Ind )
+      integer, intent(inout)       :: Ind                ! Initial and final index into the arrays.
+      real(SiKi), intent(in)       :: XAry    (:)        !< Array of X values to be interpolated.
+      real(SiKi), intent(in)       :: XValIn             !< X value to be found
+      integer                      :: AryLen             ! Length of the arrays.
+      real(SiKi)                   :: XVal               !< X to be found (wrapped/periodic)
+
+      AryLen = size(XAry)
+
+      ! Wrap XValIn into the range XAry(1) to XAry(AryLen)
+      XVal = MOD(XValIn, XAry(AryLen))
+
+      ! Let's check the limits first.
+      if ( XVal <= XAry(1) )  then
+         Ind = 1
+         return
+      else if ( XVal >= XAry(AryLen) )  then
+         Ind = AryLen
+         return
+      else
+         ! Set the Ind to the first index if we are at the beginning of XAry
+         if ( XVal <= XAry(2) )  then
+            Ind = 1
+         end if
+      end if
+
+      ! Let's interpolate!
+      Ind = MAX( MIN( Ind, AryLen-1 ), 1 )
+      do
+         if ( XVal < XAry(Ind) )  then
+            Ind = Ind - 1
+         else if ( XVal >= XAry(Ind+1) )  then
+            Ind = Ind + 1
+         else
+            ! XAry(Ind) <= XVal < XAry(Ind+1)
+            ! this would make it the "closest" node, but I'm not going to worry about that for visualization purposes
+            !if ( XVal > (XAry(Ind+1) + XAry(Ind))/2.0_SiKi ) Ind = Ind + 1
+            return
+         end if
+      end do
+      return
+   end subroutine GetWaveElevIndx
+end subroutine WrVTK_WaveElevVisGrid
 end module SeaState_C_Binding

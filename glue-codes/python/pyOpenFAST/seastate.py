@@ -97,7 +97,6 @@ class SeaStateLib(OpenFASTInterfaceType):
         #--------------------------------------
         self.vtk_write = 0         # Default -> no vtk output, 0 none, 1 init, 2 animation
         self.vtk_dt = 0.           # Default -> all
-        self.vtk_dxy = 0.          # Default -> all
         self.vtk_output_dir = ""   # Set to specify a directory relative to input files
 
     def _initialize_routines(self):
@@ -110,7 +109,6 @@ class SeaStateLib(OpenFASTInterfaceType):
             POINTER(c_char),        # intent(in   ) :: vtk_output_dir_c
             POINTER(c_int),         # intent(in   ) :: vtk_write
             POINTER(c_double),      # intent(in   ) :: vtk_dt
-            POINTER(c_float),       # intent(in   ) :: vtk_dxy
             POINTER(c_int),         # intent(  out) :: ErrStat_C
             POINTER(c_char),        # intent(  out) :: ErrMsg_C(ErrMsgLen_C)
         ]
@@ -252,7 +250,6 @@ class SeaStateLib(OpenFASTInterfaceType):
             vtk_output_dir_c,                       # IN -> directory for vtk output files
             byref(c_int(self.vtk_write)),           # IN -> write VTK flag
             byref(c_double(self.vtk_dt)),           # IN -> VTK output time step
-            byref(c_float(self.vtk_dxy)),           # IN -> VTK output dx and dy (0 reverts to default spacing)
             byref(self.error_status_c),             # OUT <- error status code
             self.error_message_c                    # OUT <- error message buffer
         )
