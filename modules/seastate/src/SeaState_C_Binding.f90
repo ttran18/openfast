@@ -648,7 +648,7 @@ subroutine SeaSt_C_GetSurfNorm(Time_C, Pos_C, NormVec_C, ErrStat_C,ErrMsg_C) BIN
 
    real(DbKi)                 :: Time
    real(ReKi)                 :: Pos(2), r
-   real(SiKi)                 :: NormVec(3)
+   real(ReKi)                 :: NormVec(3)
    integer                    :: ErrStat
    character(ErrMsgLen)       :: ErrMsg
    character(*), parameter    :: RoutineName = 'SeaSt_C_GetSurfNorm'
