@@ -129,7 +129,7 @@ SUBROUTINE WaveField_GetNodeWaveNormal( WaveField, WaveField_m, Time, pos, r, n,
    ErrStat   = ErrID_None
    ErrMsg    = ""
 
-   r1 = MAX(r,real(1.0e-6,ReKi)) ! In case r is zero
+   r1 = MAX(r,real(5.0e-3,ReKi)) ! In case r is zero
 
    ZetaP = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)+r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;
    ZetaM = WaveField_GetNodeTotalWaveElev( WaveField, WaveField_m, Time, (/pos(1)-r1,pos(2)/), ErrStat2, ErrMsg2 ); if (Failed()) return;

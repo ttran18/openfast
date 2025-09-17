@@ -497,12 +497,12 @@ class ResultsOut():
         self.results_file.write(f"# {os.linesep}")
         self.results_file.write(f"# {os.linesep}")
         self.results_file.write(f"# {os.linesep}")
-        self.results_file.write(f"          T              x              y              z             V_x            V_y            V_z            A_x            A_Y            A_Z     nodeInWater          elev           norm_x         norm_y         norm_z{os.linesep}")
-        self.results_file.write(f"         (s)            (m)            (m)            (m)           (m/s)          (m/s)          (m/s)          (m/s)          (m/s)          (m/s)        (-)              (m)            (m/s)          (m/s)          (m/s) {os.linesep}")
+        self.results_file.write(f"          T             x             y             z            V_x           V_y           V_z           A_x           A_Y           A_Z       nodeInWater      elev          norm_x        norm_y        norm_z{os.linesep}")
+        self.results_file.write(f"         (s)           (m)           (m)           (m)          (m/s)         (m/s)         (m/s)         (m/s)         (m/s)         (m/s)          (-)          (m)           (m/s)         (m/s)         (m/s) {os.linesep}")
         self.opened = True
 
     def write(self,t,p,v,a,nodeInWater,elev,n):
-        self.results_file.write('  %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12.4f   %12d   %12.4f   %12.4f   %12.4f   %12.4f\n' % (t,p[0],p[1],p[2],v[0],v[1],v[2],a[0],a[1],a[2],nodeInWater,elev,n[0],n[1],n[2]))
+        self.results_file.write('  %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11.3f   %11d   %11.3f   %11.3f   %11.3f   %11.3f\n' % (t,p[0],p[1],p[2],v[0],v[1],v[2],a[0],a[1],a[2],nodeInWater,elev,n[0],n[1],n[2]))
 
     def end(self):
         if self.opened:
