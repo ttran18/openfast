@@ -50,7 +50,7 @@ classifiers = [  # Optional
 dependencies = [
     "numpy>1.0",
     "pandas>2.0",
-    "ruamel_yaml>0.18",
+    "ruamel_yaml>0.15",
     "deepdiff>8.0",
     ]
     
