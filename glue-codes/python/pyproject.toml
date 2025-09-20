@@ -27,16 +27,16 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy"
 ]
 dependencies = [
-    "numpy>=2.0",
-    "matplotlib>=3.0",
+    "numpy",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
 windio = [
-    "windio>=1.0",
+    "windio",
 ]
 develop = [
-    "pytest>=8.0",
+    "pytest",
 ]
 
 [tool.setuptools.packages.find]

@@ -45,13 +45,15 @@ classifiers = [  # Optional
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python",
 ]
 
 dependencies = [
-    "numpy>1.0",
-    "pandas>2.0",
-    "ruamel_yaml>0.15",
-    "deepdiff>8.0",
+    "numpy",
+    "pandas",
+    "ruamel_yaml",
+    "deepdiff",
     ]
     
 [project.urls]
@@ -64,9 +66,9 @@ Issues = "https://github.com/OpenFAST/openfast/issues"
 
 [project.optional-dependencies]
 
-rosco = ["rosco>2.9.2"]
-xlrd = ["xlrd>2"]
-all = ["rosco>2.9.2", "xlrd>2"]
+rosco = ["rosco"]
+xlrd = ["xlrd"]
+all = ["rosco", "xlrd"]
 
 [tool.hatch.version]
 source = "vcs"
