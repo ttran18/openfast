@@ -823,6 +823,9 @@ class InputWriter_OpenFAST(object):
             f.write('\n')
 
         f.write('\n')
+        f.flush()
+        os.fsync(f)
+        f.close()
 
     def write_InflowWind(self):
         self.fst_vt['Fst']['InflowFile'] = self.FAST_namingOut + '_InflowWind.dat'
