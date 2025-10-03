@@ -34,8 +34,9 @@ param    ^              -  IntKi    TwrShadow_Powles        -  1  -  "Powles tow
 param    ^              -  IntKi    TwrShadow_Eames         -  2  -  "Eames tower shadow model"                   -
 
 param    ^              -  IntKi    TwrAero_none            -  0  -  "no tower aero"                            -
-param    ^              -  IntKi    TwrAero_noVIV           -  1  -  "Tower aero model without VIV"                  -
-param    ^              -  IntKi    TwrAero_VIV             -  2  -  "Tower aero model with VIV"                   -
+param    ^              -  IntKi    TwrAero_Drag            -  1  -  "Tower aero model with drag-only load"                  -
+param    ^              -  IntKi    TwrAero_Steady          -  2  -  "Tower aero model with steady lifting surface load"                   -
+param    ^              -  IntKi    TwrAero_Unsteady        -  3  -  "Tower aero model with unsteady lifting surface load"                   -
 
 param    ^              -  IntKi    SA_Wgt_Uniform          -  1  -  "Sector average weighting - Uniform"                            -
 #param    ^              -  IntKi    SA_Wgt_Impulse          -  1  -  "Sector average weighting - Impulse"                            -
@@ -174,6 +175,7 @@ typedef	^	RotInputFile	ReKi	TwrTI	{:}	-	-	"Turbulence intensity for tower shadow
 typedef	^	RotInputFile	ReKi	TwrCb	{:}	-	-	"Coefficient of buoyancy at tower node"	-
 typedef	^	RotInputFile	ReKi	TwrCp	{:}	-	-	"Coefficient of dynamic pressure at tower node"	-
 typedef	^	RotInputFile	ReKi	TwrCa	{:}	-	-	"Coefficient of added mass at tower node"	-
+typedef	^	RotInputFile	ReKi	TwrAFID	{:}	-	-	"ID of Airfoil at Tower node [1 to NumAFfiles]"	-
 # Hub
 typedef	^	RotInputFile	ReKi	VolHub	    -	-	-	"Hub volume" m^3
 typedef	^	RotInputFile	ReKi	HubCenBx    -	-	-	"Hub center of buoyancy x direction offset" m
@@ -316,6 +318,7 @@ typedef  ^  ^                     ReKi                     BlTwist              
 typedef	^	RotParameterType	ReKi	TwrCb	{:}	-	-	"Coefficient of buoyancy at tower node"	-
 typedef	^	RotParameterType	ReKi	TwrCp	{:}	-	-	"Coefficient of dynamic pressure at tower node"	-
 typedef	^	RotParameterType	ReKi	TwrCa	{:}	-	-	"Coefficient of added mass at tower node"	-
+typedef	^	RotParameterType	ReKi	TwrAFID	{:}	-	-	"ID of Airfoil at Tower node [1 to NumAFfiles]"	-
 typedef	^	RotParameterType	ReKi	BlCenBn	{:}{:}	-	-	"Normal offset between aerodynamic center and center of buoyancy at blade node"	m
 typedef	^	RotParameterType	ReKi	BlCenBt	{:}{:}	-	-	"Tangential offset between aerodynamic center and center of buoyancy at blade node"	m
 typedef	^	RotParameterType	ReKi	VolHub	    -	-	-	"Hub volume" m^3

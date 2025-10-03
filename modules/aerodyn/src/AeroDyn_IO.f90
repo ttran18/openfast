@@ -705,8 +705,8 @@ SUBROUTINE ParsePrimaryFileInfo( PriPath, InitInp, InputFile, RootName, NumBlade
    character(ErrMsgLen)                            :: ErrMsg2           !< Temporary Error message
    character(ErrMsgLen)                            :: ErrMsg_NoAllBldNdOuts
    integer(IntKi)                                  :: CurLine           !< current entry in FileInfo_In%Lines array
-   real(ReKi)                                      :: TmpRe7(7)         !< temporary 8 number array for reading values in
-   logical                                         :: TwrAeroLogical    !< convert TwrAero from logical (input file) to integer (new)
+   real(ReKi)                                      :: TmpRe8(8)         !< temporary 8 number array for reading values in
+   !logical                                         :: TwrAeroLogical    !< convert TwrAero from logical (input file) to integer (new)
    character(1024)                                 :: sDummy            !< temporary string
    character(1024)                                 :: tmpOutStr         !< temporary string for writing to screen
    logical :: wakeModProvided, frozenWakeProvided, skewModProvided, AFAeroModProvided, UAModProvided, isLegalComment, firstWarn !< Temporary for legacy purposes
@@ -794,13 +794,13 @@ SUBROUTINE ParsePrimaryFileInfo( PriPath, InitInp, InputFile, RootName, NumBlade
    call ParseVar( FileInfo_In, CurLine, "TwrShadow", InputFileData%TwrShadow, ErrStat2, ErrMsg2, UnEc )
       if (Failed()) return
       ! TwrAero - Calculate tower aerodynamic loads? (flag)
-   call ParseVar( FileInfo_In, CurLine, "TwrAero", TwrAeroLogical, ErrStat2, ErrMsg2, UnEc )
+   call ParseVar( FileInfo_In, CurLine, "TwrAero", InputFileData%TwrAero, ErrStat2, ErrMsg2, UnEc )
       if (Failed()) return
-      if (TwrAeroLogical) then
-         InputFileData%TwrAero = TwrAero_NoVIV
-      else
-         InputFileData%TwrAero = TwrAero_None
-      end if
+!      if (TwrAeroLogical) then
+!         InputFileData%TwrAero = TwrAero_NoVIV
+!      else
+!         InputFileData%TwrAero = TwrAero_None
+!      end if
       
    ! FrozenWake - Assume frozen wake during linearization? (flag) [used only when WakeMod=1 and when linearizing]
    call ParseVar( FileInfo_In, CurLine, "FrozenWake", FrozenWake_Old, ErrStat2, ErrMsg2, UnEc )
@@ -1113,16 +1113,19 @@ SUBROUTINE ParsePrimaryFileInfo( PriPath, InitInp, InputFile, RootName, NumBlade
          if (Failed()) return 
       CALL AllocAry( InputFileData%rotors(iR)%TwrCa, InputFileData%rotors(iR)%NumTwrNds, 'TwrCa', ErrStat2, ErrMsg2)
          if (Failed()) return 
+      CALL AllocAry( InputFileData%rotors(iR)%TwrAFID, InputFileData%rotors(iR)%NumTwrNds, 'TwrAFID', ErrStat2, ErrMsg2)
+         if (Failed()) return 
       do I=1,InputFileData%rotors(iR)%NumTwrNds
-         call ParseAry ( FileInfo_In, CurLine, 'Properties for tower node '//trim( Int2LStr( I ) )//'.', TmpRe7, 7, ErrStat2, ErrMsg2, UnEc )
+         call ParseAry ( FileInfo_In, CurLine, 'Properties for tower node '//trim( Int2LStr( I ) )//'.', TmpRe8, 8, ErrStat2, ErrMsg2, UnEc )
             if (Failed()) return;
-         InputFileData%rotors(iR)%TwrElev(I) = TmpRe7( 1)
-         InputFileData%rotors(iR)%TwrDiam(I) = TmpRe7( 2)
-         InputFileData%rotors(iR)%TwrCd(I)   = TmpRe7( 3)
-         InputFileData%rotors(iR)%TwrTI(I)   = TmpRe7( 4)
-         InputFileData%rotors(iR)%TwrCb(I)   = TmpRe7( 5)
-         InputFileData%rotors(iR)%TwrCp(I)   = TmpRe7( 6)
-         InputFileData%rotors(iR)%TwrCa(I)   = TmpRe7( 7)
+         InputFileData%rotors(iR)%TwrElev(I) = TmpRe8( 1)
+         InputFileData%rotors(iR)%TwrDiam(I) = TmpRe8( 2)
+         InputFileData%rotors(iR)%TwrCd(I)   = TmpRe8( 3)
+         InputFileData%rotors(iR)%TwrTI(I)   = TmpRe8( 4)
+         InputFileData%rotors(iR)%TwrCb(I)   = TmpRe8( 5)
+         InputFileData%rotors(iR)%TwrCp(I)   = TmpRe8( 6)
+         InputFileData%rotors(iR)%TwrCa(I)   = TmpRe8( 7)
+         InputFileData%rotors(iR)%TwrAFID(I) = TmpRe8( 8)
       end do
    enddo
 
@@ -1859,10 +1862,12 @@ SUBROUTINE AD_PrintSum( InputFileData, p, p_AD, u, y, NumBlades, BladeInputFileD
    select case (p%TwrAero)
       case (TwrAero_none)
          Msg = "none"
-      case (TwrAero_NoVIV)
-         Msg = "Tower aero calculated without VIV"
-!      case (TwrAero_VIV)
-!         Msg = "Tower aero calculated with VIV"
+      case (TwrAero_Drag)
+         Msg = "Tower aero calculated drag-only load"
+      case (TwrAero_Steady)
+         Msg = "Tower aero calculated with steady lifting surface load"
+      case (TwrAero_Unsteady)
+         Msg = "Tower aero calculated with unsteady lifting surface load"   
       case default
          Msg = 'unknown'
    end select
